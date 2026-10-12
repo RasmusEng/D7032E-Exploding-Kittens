@@ -37,6 +37,7 @@ import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -94,7 +95,7 @@ public final class Main {
         Randomizer randomizer = new JavaRandomizer();
         List<Expansion> expansions = List.of(new BaseGame());
         Map<CardType, CardEffect> effects = new LinkedHashMap<>();
-        expansions.forEach(e -> effects.putAll(e.cardEffects()));
+        expansions.forEach(e -> effects.putAll(e.cardEffects())); // Kollar expansions och laddar in de
         List<CardType> nameable = List.of(BaseCardType.values());
 
         Map<Player, PlayerController> controllers = new LinkedHashMap<>();
@@ -114,8 +115,7 @@ public final class Main {
             controllers.put(new Player(remote.name()), remote);
             listeners.add(remote);
         }
-        // last, so its pause after a move comes after the clients have been sent the event;
-        // pausing the engine thread here paces the game for every player
+
         listeners.add(new ConsoleView(console, host.name(), Sleeper.REAL));
         for (int i = 1; i <= bots; i++) {
             controllers.put(new Player("Bot " + i), new BotController(randomizer, effects.keySet(), nameable));
@@ -152,6 +152,8 @@ public final class Main {
         }
         try (ServerSocket server = new ServerSocket(GameServer.PORT)) {
             System.out.println("Waiting for " + count + " player(s) on port " + GameServer.PORT + "...");
+            System.out.println("To join, run: java -cp out/classes ek.app.Main client <ip>");
+            printJoinAddresses();
             for (int i = 2; i <= count + 1; i++) {
                 remotes.add(GameServer.accept(server, "Player " + i, nameable, VIRTUAL_THREADS));
                 System.out.println("Player " + i + " joined.");
@@ -166,8 +168,6 @@ public final class Main {
             System.out.println("Connected to " + host + ". Waiting for the game to start...");
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
             ConsoleOutput console = new ConsoleOutput(System.out, Style.detect(System.getenv()));
-            // no pause here: the host's pauses already pace the game, and a client pausing
-            // would only fall behind and lose time in the Nope windows
             String name = new GameClient(new ObjectStreamChannel(socket),
                     (me, nameable) -> new GameClient.Seat(new ConsoleController(in, console, nameable),
                             new ConsoleView(console, me, Sleeper.NONE)),
@@ -175,6 +175,19 @@ public final class Main {
             System.out.println("Game over, " + name + ".");
         } catch (IOException e) {
             exit("Connection to " + host + " failed: " + e.getMessage());
+        }
+    }
+
+    /** Lists this machine's addresses as hints; the right one depends on where the client is. */
+    private static void printJoinAddresses() {
+        System.out.println("  on this computer: 127.0.0.1");
+        try {
+            List<String> addresses = GameServer.localAddresses();
+            if (!addresses.isEmpty()) {
+                System.out.println("  from another computer, try: " + String.join(", ", addresses));
+            }
+        } catch (SocketException e) {
+            System.out.println("  (could not list this computer's addresses: " + e.getMessage() + ")");
         }
     }
 

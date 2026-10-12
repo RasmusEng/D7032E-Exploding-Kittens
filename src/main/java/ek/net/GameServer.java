@@ -3,7 +3,10 @@ package ek.net;
 import ek.model.CardType;
 
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.NetworkInterface;
 import java.net.ServerSocket;
+import java.net.SocketException;
 import java.util.List;
 import java.util.concurrent.Executor;
 
@@ -33,5 +36,27 @@ public final class GameServer {
         RemoteController controller = new RemoteController(name, channel);
         readers.execute(controller::listen);
         return controller;
+    }
+
+    /**
+     * This machine's IPv4 addresses on active, non-loopback interfaces: candidates for remote clients
+     * to connect to. Which one a client can actually reach depends on its network, so callers present
+     * them as hints, not as the answer.
+     */
+    public static List<String> localAddresses() throws SocketException {
+        return NetworkInterface.networkInterfaces()
+                .filter(GameServer::isUsable)
+                .flatMap(NetworkInterface::inetAddresses)
+                .filter(address -> address instanceof Inet4Address && !address.isLoopbackAddress())
+                .map(address -> address.getHostAddress())
+                .toList();
+    }
+
+    private static boolean isUsable(NetworkInterface nic) {
+        try {
+            return nic.isUp() && !nic.isLoopback();
+        } catch (SocketException e) {
+            return false; // the interface vanished while we looked: it can't be connected to anyway
+        }
     }
 }
