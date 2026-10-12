@@ -1,0 +1,277 @@
+# Design notes
+
+One short entry per decision: what, and why.
+
+## Model layer (`ek.model`)
+
+- **`CardType` is an interface, `BaseCardType` an enum implementing it.**
+  Enums give type-safe card names (no magic strings), but a single enum is closed:
+  every expansion would have to edit it. With an interface, an expansion adds its own
+  enum (e.g. `ImplodingCardType`) and the base game is untouched — Open/Closed (req 14, 18).
+
+- **`Card` is an immutable record.** Cards carry no state besides their type, so value
+  equality is enough and they can be shared safely (Booch: primitiveness).
+
+- **`Deck`, `Hand`, `DiscardPile` wrap their list and expose behaviour only**
+  (`draw`, `peek`, `insertAt`, `remove(type)`, ...), never the mutable list.
+  Invariants (no nulls, valid insert index, draw from empty fails) are enforced in one
+  place — high cohesion, encapsulation. Read access is via unmodifiable views.
+
+- **Deck index 0 is the top.** `insertAt(0, …)` puts a defused kitten on top, `insertAt(size(), …)`
+  on the bottom (R10a). `peek(n)` returns fewer than `n` cards if the deck is short (R11e).
+
+- **Randomness is injected (`ek.util.Randomizer`).** `Deck.shuffle(Randomizer)` runs
+  Fisher–Yates with the injected source, so tests use a lambda (`bound -> 0`) and get a
+  known order — Dependency Inversion, testability (req 19). `JavaRandomizer` is the
+  production implementation, created only in the composition root.
+
+- **`Player` holds no I/O.** It is a name, a hand and an alive flag; decisions come from a
+  `PlayerController` (added later), so human, remote and bot players share one model — SRP.
+  `explode()` returns the discarded hand so the caller decides where it goes (the model
+  doesn't know about the discard pile — low coupling).
+
+## Game setup, rules 1–7 (`ek.expansion`, `ek.rules`)
+
+- **`Expansion` interface: "which cards go in the deck for N players".** `BaseGame` is just
+  one implementation. A new expansion (req 14) is a new class added to the list given to
+  `DeckFactory`, with no edits to existing code — Open/Closed. It returns a type→count map
+  instead of a list of `Card`s, so counts are easy to read and test against rule 3.
+
+- **`DeckFactory` only builds the unshuffled deck from the expansions.** It doesn't shuffle,
+  deal or add kittens — SRP, and it can be tested without any randomness.
+
+- **`GameSetup` (in `rules`) runs rules 1–7 in the spec's order**, one line per rule:
+  validate player count, give each player a Defuse, build deck, shuffle, deal 7, insert
+  players − 1 kittens, shuffle. It gets `DeckFactory` and `Randomizer` through the constructor
+  (Dependency Injection), so tests control both. The players' Defuses are created new, so
+  they come on top of the 2 (or 1) in the deck, as rule 3a says.
+
+- **Shuffles are tested by recording the randomizer's calls.** Fisher–Yates on n cards calls
+  `nextInt(n)` first, so the recorded bounds prove *when* each shuffle ran and on how many
+  cards (48 before dealing, 35 after kittens for 2 players). A randomizer returning
+  `bound - 1` swaps nothing, giving a known deck order in other tests.
+
+## Turn engine, rules 8, 9a, 10, 13 (`ek.engine`, `ek.player`, `ek.rules`)
+
+- **`PlayerController` is the only way the engine asks a player anything.** Console,
+  network and bot players will implement it, and the engine can't tell them apart —
+  Dependency Inversion + Liskov (req 16). It only has the methods needed so far
+  (Booch: sufficiency); later rules add methods as they need them.
+
+- **`TurnAction`, `GameView` and `PlayerController` live together in `ek.player`.**
+  That package depends only on `ek.model`. The engine depends on `ek.player`, never the
+  other way round, so there is no package cycle.
+
+- **`TurnAction` is a sealed interface of records** (`Pass` now; `Play` comes with rule 11).
+  The engine `switch`es over it and the compiler reports any action that isn't handled.
+  No strings or keywords (req 17).
+
+- **`GameView` is a read-only snapshot**, not the live state. Controllers can't change the
+  game or see other players' cards — encapsulation. It's also what the network layer will send.
+
+- **`TurnState` holds only "whose turn, how many turns left".** Moving clockwise, skipping
+  exploded players and (later) Attack stacking are tested here on their own (SRP).
+
+- **Events + `GameEventListener` (Observer).** The engine publishes `TurnStarted`,
+  `CardDrawn`, `KittenDefused`, `PlayerExploded` and `Winner`, and never prints. A console
+  view or the network layer just registers as a listener (CLAUDE.md §2.4). Rule 13
+  ("announced to all players") is a `Winner` event sent to every listener.
+  `CardDrawn` leaves out the card so other players can't see it.
+
+- **Invalid kitten position → ask again.** Checking a position the player chose is input
+  validation, so the engine keeps asking the controller rather than crashing the game.
+  A controller that never gives a valid answer would loop forever; real controllers
+  (console/bot) are responsible for valid input.
+
+- **Test fakes instead of mocks:** `ScriptedController` (pre-programmed answers),
+  `RecordingListener` (collects events) and `GameStateBuilder` (exact hands, deck order and
+  start player) put the game in any state with no randomness or real input.
+
+## Playing cards, rules 9b and 11 (`ek.engine`, `ek.cards`, `ek.combos`)
+
+- **`CardEffect` is in `engine`, its implementations in `cards` and `combos`.** Effects need
+  the game state (engine), and the engine needs to call effects. If the interface lived in
+  `cards`, the two packages would depend on each other. With the interface owned by the
+  high-level package, the low-level ones depend on it — Dependency Inversion, no cycle.
+
+- **One class per effect** (`AttackEffect`, `FavorEffect`, …, `TwoOfAKind`, `ThreeOfAKind`).
+  A new card is a new class registered by its expansion; the engine has no `switch` on
+  card types — Open/Closed, and each class is small and testable alone (SRP).
+
+- **`Expansion.cardEffects()` (default: none)** lets an expansion bring its effects along
+  with its cards. `BaseGame` maps Attack, Favor, Shuffle, Skip and See The Future.
+
+- **`PlayResolver` decides what a play means:** 1 card → its effect, 2 or 3 of the same
+  type → the combo, anything else → `InvalidMoveException`. Combos ignore the cards' own
+  effects because the resolver picks the combo by count, not by card type. Cards
+  without a solo effect (cats, Defuse, Nope) are rejected when played alone.
+
+- **`InvalidMoveException` is checked**, so the engine has to handle it: it publishes
+  `MoveRejected` with the reason and asks the same player again. Nothing changes on a
+  rejected move (cards are only removed after validation).
+
+- **`GameContext` is what an effect may use**: state, controllers, randomizer, publish, the
+  player's view, and "ask until valid" helpers. Effects get one object instead of the
+  whole engine (low coupling), and tests build one with `GameStateBuilder.buildContext()`.
+
+- **A turn ends when `TurnState.turnId()` changes.** The engine keeps asking the current
+  player for actions until that happens. Pass, Skip and Attack all end the turn by changing
+  `TurnState`, so the engine doesn't need to know which cards end turns.
+
+- **Attack stacking:** `TurnState` remembers whether the current player is under attack.
+  Attack gives the next player 2 turns plus, if the attacker was a victim, their remaining
+  turns (2 → 4 → 6 when attacking on the first turn; 3 if on the last of 2). This follows
+  the rulebook's "remaining turns plus 2". Skip only ends one turn.
+
+- **Private information stays private:** See The Future goes only to the playing player's
+  controller (`seeTheFuture`), and `CardTaken` events don't say which card moved.
+
+## Nope window, rule 12 + concurrency bonus (`ek.engine.NopeResolver`)
+
+- **All concurrency is in one class.** `NopeResolver` (with its private `Window`) is the only
+  code that deals with threads. The rest of the engine stays single-threaded and simple.
+
+- **Only the engine thread changes game state.** Controllers answer from any thread by
+  calling `NopeOffer.playNope()`. That only *claims* the window (a synchronized method on
+  `Window`). The engine thread then removes the Nope card, discards it and publishes the
+  event. Hands, deck and discard pile never need locks (thread confinement).
+
+- **Offers go out through an injected `Executor`**, so players decide in parallel and a
+  slow or blocked player (console read, network round-trip) can't stop the others from
+  answering. Tests inject `Runnable::run` (same thread, deterministic); production will use
+  `Executors.newVirtualThreadPerTaskExecutor()`. The `GameView` for each offer is built on
+  the engine thread first, and it's immutable, so passing it to another thread is safe.
+
+- **First claim wins, late claims are refused.** `Window.claim` returns `false` once
+  someone was first or the window has closed. A `CountDownLatch` wakes the engine as soon
+  as someone claims, so it never waits the full 5 s when a Nope is played.
+
+- **Window length is injected (`Duration`)**, default `DEFAULT_WINDOW` = 5 s (rule 12).
+  Unit tests use 0 s, so there is no real waiting. One test uses real threads and a 1-hour window
+  to prove a Nope from another thread closes the window immediately (no sleeps).
+
+- **Nope chains:** each Nope opens a new window. The player who played last is not
+  offered a Nope (you don't Nope yourself), so the original player can Yup a Nope on
+  their card. The play is cancelled when the number of Nopes is odd (rule 12a).
+  Noped cards stay on the discard pile.
+
+- **No window if nobody holds a Nope**, so the game doesn't stall for 5 s after every play.
+
+- **Interrupts:** if the engine thread is interrupted while waiting, the window is closed
+  as if time ran out and the interrupt flag is restored — not swallowed (CLAUDE.md §7).
+
+- **Kitten draws and Defuse are never offered for Nope**: the resolver only runs after a
+  `Play` action, and Nope alone is not a legal play (`PlayResolver` rejects it).
+
+## Runnable game: console, bots, `Main` (`ek.ui`, `ek.player`, `ek.app`)
+
+- **`Main` is the composition root.** It is the only class that creates services
+  (`JavaRandomizer`, `GameSetup`, resolvers, controllers, view) and wires them together.
+  Everything else gets its dependencies through constructors, so tests can wire fakes
+  instead (Dependency Injection, req 19).
+
+- **`ConsoleController` is just another `PlayerController`.** The engine doesn't know a
+  human is playing. All parsing and range checks happen here, at the boundary, and bad
+  input is asked again. The engine still validates moves, so a faulty controller can't break it.
+  Input and output streams are injected, so tests use a `StringReader` instead of a terminal.
+
+- **Console Nope prompt and threads.** `offerNope` runs on a Nope-window thread while the
+  engine waits. It only reads input while the offer is open (`NopeOffer.isOpen()`), and all
+  reads share one lock, so after the window closes the next prompt gets the next line —
+  input is never read by two prompts. It checks for input every 50 ms instead of blocking on
+  `readLine`, so it can stop when time is up.
+
+- **`ConsoleView` is a `GameEventListener`** that turns each event into a line of text with
+  an exhaustive `switch` over the sealed `GameEvent` type: a new event type is a compile
+  error here until it is rendered. Drawn and stolen cards are never printed.
+
+- **`BotController` makes random legal moves** (decision in CLAUDE.md §9). It picks
+  uniformly among Pass and every legal play (single cards with an effect, pairs, triples),
+  so it never makes a move the engine rejects. Randomness is injected, so a seeded bot
+  game is reproducible. Bots join through the same interface as humans (Liskov, req 16).
+
+## Network play, rule 17 (`ek.net`)
+
+- **Proxy on the server, plain console on the client.** `RemoteController` implements
+  `PlayerController` and `GameEventListener` and turns every call into a message. The
+  engine can't tell a remote player from a local one (Liskov), so no game code changed.
+  The client (`GameClient`) passes each message to an ordinary `ConsoleController` and
+  `ConsoleView`, so a remote player gets exactly the same console UI as the host.
+
+- **The host plays at its own console** (CLAUDE.md §9). `server N B` = the host + N−1
+  clients + B bots, so `server 1 B` is still a single-player game with no sockets.
+
+- **Typed messages, no keywords (req 17).** `Message` is a sealed interface of records,
+  split into `ToClient` and `ToServer`. Most messages mirror one `PlayerController`
+  method or its answer. The client `switch`es over them, so a new message is a compile
+  error until it is handled. The client doesn't know any card names: the server sends the
+  cards that can be named in its `Welcome`, so an expansion needs no client change.
+
+- **Transport behind `MessageChannel`.** The rest of `ek.net` only sees send/receive.
+  `ObjectStreamChannel` uses Java serialization (no extra dependency). The wire format
+  could change to e.g. JSON by writing another channel. Tests use an in-memory
+  `LoopbackChannel` instead of sockets.
+
+- **Received data is checked.** An `ObjectInputFilter` only lets game types and basic
+  JDK types be read, so a hostile client can't make the server create other classes.
+  Records are rebuilt through their constructors, so their checks (no nulls, copied lists)
+  also run on received data. The engine still validates every move, as for local players.
+
+- **Events carry player names, not `Player` objects.** An event is now a pure value that
+  can be sent as it is. Before, a listener could reach any player's live hand through
+  `event.player().hand()`. Convenience constructors take a `Player`, so the engine's code
+  didn't change.
+
+- **Remote Nope (concurrency).** `offerNope` sends `OfferNope` with an id, and the client's
+  `PlayNope(id)` is handled on the connection's reader thread, which claims the engine's
+  window exactly like a local player would. The engine thread is still the only one that
+  changes game state.
+
+- **Message order.** All sends to a client hold one lock. Before any other message,
+  `RemoteController` sends `NopeClosed` for windows that have closed, and an offer is
+  only sent while its window is open. A `NopeResult` is sent while the claim is made, so
+  it arrives before the engine's `NopePlayed`. The client therefore never answers a turn
+  prompt while an old Nope prompt is still reading input.
+
+- **Disconnects end the game.** If a client disconnects, the next request to it throws
+  `UncheckedIOException` and `Main` prints "Game aborted". Reconnecting or replacing the
+  player with a bot is outside rules 1–17.
+
+## Console dashboard and Nope countdown (`ek.ui`)
+
+- **With ANSI, the screen is one frame redrawn in place; nothing scrolls.** `ConsoleOutput`
+  holds the frame (board, turn heading, and the question being asked: its lines and prompt)
+  and rewrites all of it from the top left after every change: an event goes into the
+  board's *Recent* box instead of being appended, and an answered question is removed, so
+  lines never pile up under the board. The open prompt is always the last
+  row, so an event arriving during a Nope prompt can't push it away. The board is stored as
+  a function of the recent lines, so it is redrawn with each new event without
+  `ConsoleOutput` knowing about `GameView`. Every decision (`chooseAction`, the Nope
+  offer, Favor, ...) replaces the board with one built from its fresh `GameView`. Between
+  decisions, deck and hand counts are as of the last decision; keeping them live would need
+  the engine to send views with events, which the UI alone shouldn't change. The trade-off: a
+  redraw while you are typing hides the typed text, though Enter still sends it.
+  Plain style keeps appending lines, so tests and dumb terminals see a simple log.
+
+- **`ConsoleOutput` keeps the last 8 event lines**, and the dashboard's *Recent* section
+  shows them. Private lines ("You drew X", See The Future, "Not allowed") go there too, so
+  redrawing never hides something you just learned. The history lives in `ConsoleOutput`
+  because that is already the single, synchronized object the view and the controller share,
+  so no extra wiring is needed in `Main` or `GameClient`.
+
+- **`Dashboard` and `NopeCountdown` are pure text** (like `HandMenu`). They are tested
+  without I/O, and the controller only decides *when* to print them (SRP, testability).
+
+- **Colour is a `Style` injected through `ConsoleOutput`.** `Style.PLAIN` (used by tests,
+  and when `NO_COLOR` is set or `TERM=dumb`) prints no escape codes; `Style.ANSI` colours
+  lines and can clear the screen and rewrite a line. `Main` makes the choice once. Rows are
+  padded *before* they are painted, so escape codes never upset the box's width.
+
+- **The Nope countdown: `NopeOffer.window()` gives the window's length, not a deadline.**
+  The server's and the client's clocks can differ, so each side counts from the moment it
+  got the offer (`OfferNope.windowMillis` carries the length over the network, as a plain
+  `long`, so the deserialization filter doesn't need `java.time`). The countdown is display
+  only: `isOpen()` and the server still decide, so a client running slightly behind can't
+  get a late Nope accepted. The time is read from an injected `InstantSource`, so a test can
+  drive the countdown without waiting. `ConsoleOutput.updatePrompt` rewrites the prompt
+  only while it is still the last thing on screen, so it never overwrites an event.
