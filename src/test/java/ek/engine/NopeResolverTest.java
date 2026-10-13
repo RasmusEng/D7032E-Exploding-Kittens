@@ -189,6 +189,48 @@ class NopeResolverTest {
     }
 
     @Test
+    void everyoneDeclines_windowClosesWithoutWaiting() {
+        ScriptedController b = ScriptedController.passing().nopes(false);
+        ScriptedController c = ScriptedController.passing().nopes(false);
+        GameStateBuilder game = new GameStateBuilder()
+                .player("A", ScriptedController.passing())
+                .player("B", b, NOPE)
+                .player("C", c, NOPE);
+        // a 1-hour window would hang the test if the declines didn't close it
+        NopeResolver resolver = new NopeResolver(Duration.ofHours(1), Runnable::run);
+        assertTimeoutPreemptively(Duration.ofSeconds(2),
+                () -> assertFalse(resolver.isCancelled(game.buildContext(), game.player(0), List.of(SKIP))));
+        assertTrue(game.player(1).hand().contains(NOPE));
+    }
+
+    @Test
+    void oneDecline_othersCanStillNope() {
+        ScriptedController b = ScriptedController.passing().nopes(false);
+        ScriptedController c = ScriptedController.passing().nopes(true);
+        GameStateBuilder game = new GameStateBuilder()
+                .player("A", ScriptedController.passing())
+                .player("B", b, NOPE)
+                .player("C", c, NOPE);
+
+        assertTrue(GameStateBuilder.instantNopeResolver().isCancelled(game.buildContext(), game.player(0), List.of(SKIP)));
+        assertFalse(game.player(2).hand().contains(NOPE));
+    }
+
+    @Test
+    void afterDeclining_aPlayerCannotNopeInThatWindow() {
+        ScriptedController b = ScriptedController.passing().nopes(false);
+        GameStateBuilder game = new GameStateBuilder()
+                .player("A", ScriptedController.passing())
+                .player("B", b, NOPE);
+        // B declines, then tries to Nope before the engine has closed the window
+        NopeResolver resolver = new NopeResolver(Duration.ofMillis(200),
+                task -> { task.run(); assertFalse(b.nopeOffers().get(0).playNope()); });
+
+        assertFalse(resolver.isCancelled(game.buildContext(), game.player(0), List.of(SKIP)));
+        assertTrue(game.player(1).hand().contains(NOPE));
+    }
+
+    @Test
     void nopeFromAnotherThread_wakesEngineBeforeTimeout() {
         ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
         try {

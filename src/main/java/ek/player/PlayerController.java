@@ -50,9 +50,17 @@ public interface PlayerController {
     /**
      * Offers the chance to play Nope (only to players holding one). May run on a separate
      * thread. To Nope, call {@link NopeOffer#playNope()} — now or later from another thread,
-     * while the window is open. Doing nothing means no Nope.
+     * while the window is open. Call {@link NopeOffer#decline()} to let the play go ahead;
+     * doing nothing also means no Nope, but the game then waits for the window to run out.
      */
     void offerNope(GameView view, NopeOffer offer);
+
+    /**
+     * The cards are dealt and the game is about to start: shows this player their hand and
+     * the table before the first turn. Purely informational, so the default ignores it.
+     */
+    default void gameStarted(GameView view) {
+    }
 
     /**
      * Tells this player privately which card entered or left their hand. Purely

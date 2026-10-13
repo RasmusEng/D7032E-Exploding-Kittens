@@ -13,9 +13,6 @@ import ek.ui.Style.Tone;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.InstantSource;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -24,8 +21,7 @@ import java.util.stream.Collectors;
 /**
  * A human player at the console. All input is checked here (the boundary) and asked again
  * until it is valid; the engine only gets well-formed answers. Each turn starts by drawing
- * the {@link Dashboard}, and every later decision updates it from its fresh {@link GameView};
- * the Nope prompt counts down its window.
+ * the {@link Dashboard}, and every later decision updates it from its fresh {@link GameView}.
  *
  * <p><b>Thread-safety.</b> {@link #offerNope} runs on a Nope-window thread while the engine
  * thread waits. Every read takes {@code inputLock}, and the Nope prompt only reads while the
@@ -39,24 +35,13 @@ public final class ConsoleController implements PlayerController {
     private final BufferedReader in;
     private final ConsoleOutput out;
     private final List<CardType> nameableCards;
-    private final InstantSource clock;
     private final Object inputLock = new Object();
 
-    /** A console using the system clock for the Nope countdown. */
+    /** @param nameableCards card types offered when naming a card for three of a kind */
     public ConsoleController(BufferedReader in, ConsoleOutput out, List<CardType> nameableCards) {
-        this(in, out, nameableCards, InstantSource.system());
-    }
-
-    /**
-     * @param nameableCards card types offered when naming a card for three of a kind
-     * @param clock         times the Nope countdown; only for display, the window itself is timed elsewhere
-     */
-    public ConsoleController(BufferedReader in, ConsoleOutput out, List<CardType> nameableCards,
-                             InstantSource clock) {
         this.in = in;
         this.out = out;
         this.nameableCards = List.copyOf(nameableCards);
-        this.clock = clock;
     }
 
     @Override
@@ -78,6 +63,12 @@ public final class ConsoleController implements PlayerController {
             }
             out.println("Invalid input. Type h for help.");
         }
+    }
+
+    /** Shows the dashboard as soon as the cards are dealt, before anyone's turn. */
+    @Override
+    public void gameStarted(GameView view) {
+        out.showBoard(board(view, new HandMenu(view.hand())));
     }
 
     @Override
@@ -127,35 +118,30 @@ public final class ConsoleController implements PlayerController {
     }
 
     /**
-     * Shows the offer until Enter is pressed (play Nope) or the window closes, redrawing the
-     * countdown each second if the terminal can. There is no "no": the offer just expires.
+     * Asks whether to Nope: Enter plays it, {@code n} lets the play go ahead (so the game goes
+     * on at once). Unanswered, the offer closes when the window's time is up.
      */
     @Override
     public void offerNope(GameView view, NopeOffer offer) {
         out.updateBoard(board(view, new HandMenu(view.hand())));
         String play = offer.playedBy() + "'s " + ConsoleView.describe(offer.cards());
-        NopeCountdown countdown = new NopeCountdown(offer.nopesSoFar() % 2 == 1
-                ? "Play Nope to Yup " + play + " back on?" : "Nope " + play + "?", offer.window());
-        Style style = out.style();
-        Instant start = clock.instant();
-        long shown = NopeCountdown.secondsLeft(offer.window(), Duration.ZERO);
-        long prompt = out.prompt(style.paint(
-                style.canRewriteLines() ? countdown.live(shown) : countdown.fixed(), Tone.NOPE));
+        String question = (offer.nopesSoFar() % 2 == 1 ? "Play Nope to Yup " + play + " back on?" : "Nope " + play + "?")
+                + " Enter = Nope: ";
+        long prompt = out.prompt(out.style().paint(question, Tone.NOPE));
         while (offer.isOpen()) {
             Optional<String> line = readLineIfOpen(offer);
             if (line.isPresent()) {
                 out.answered(prompt, line.get());
-                if (!offer.playNope()) {
-                    out.event("Too late!", Tone.MUTED);
+                String answer = line.get().trim();
+                if (answer.isEmpty()) {
+                    if (!offer.playNope()) {
+                        out.event("Too late!", Tone.MUTED);
+                    }
+                    return;
                 }
-                return;
-            }
-            long left = NopeCountdown.secondsLeft(offer.window(), Duration.between(start, clock.instant()));
-            if (left != shown) {
-                shown = left;
-                out.updatePrompt(prompt, style.paint(countdown.live(left), Tone.NOPE));
-            }
-            if (!pause()) {
+                out.println("Press Enter to Nope, or let it go.");
+                prompt = out.prompt(out.style().paint(question, Tone.NOPE));
+            } else if (!pause()) {
                 return;
             }
         }

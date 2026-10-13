@@ -82,6 +82,13 @@ public sealed interface Message extends Serializable {
         }
     }
 
+    /** The cards are dealt: this client's view of the table before the first turn. */
+    record GameStarted(GameView view) implements ToClient {
+        public GameStarted {
+            Objects.requireNonNull(view, "view");
+        }
+    }
+
     /** Private: which card entered or left this client's hand. */
     record HandChanged(HandChange change) implements ToClient {
         public HandChanged {
@@ -132,5 +139,9 @@ public sealed interface Message extends Serializable {
 
     /** The client plays Nope on the given offer. */
     record PlayNope(int offerId) implements ToServer {
+    }
+
+    /** The client won't Nope the given offer. */
+    record DeclineNope(int offerId) implements ToServer {
     }
 }

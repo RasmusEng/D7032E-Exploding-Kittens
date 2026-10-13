@@ -5,6 +5,7 @@ import ek.expansion.DeckFactory;
 import ek.model.Card;
 import ek.model.DiscardPile;
 import ek.model.Player;
+import ek.player.GameView;
 import ek.player.HandChange;
 import ek.player.PlayerController;
 import ek.rules.GameSetup;
@@ -57,6 +58,25 @@ class GameEngineTest {
                 new GameEvent.TurnStarted(a, 1), new GameEvent.CardDrawn(a),
                 new GameEvent.TurnStarted(b, 1), new GameEvent.CardDrawn(b),
                 new GameEvent.PlayerExploded(b), new GameEvent.Winner(a)), listener.events());
+    }
+
+    @Test
+    void gameStarted_everyPlayerSeesTheDealtTable_beforeTheFirstTurn() {
+        ScriptedController a = ScriptedController.passing();
+        ScriptedController b = ScriptedController.passing();
+        GameStateBuilder game = new GameStateBuilder()
+                .player("A", a, NOPE, SKIP)
+                .player("B", b, DEFUSE)
+                .deck(SKIP, EXPLODING_KITTEN)
+                .startPlayer(1);
+        game.buildEngine().run();
+
+        assertEquals(1, a.startViews().size());   // A doesn't start, but still sees the table
+        GameView view = a.startViews().get(0);
+        assertEquals(List.of(new Card(NOPE), new Card(SKIP)), view.hand());
+        assertEquals(2, view.deckSize());
+        assertEquals(1, b.startViews().size());
+        assertEquals(List.of(new Card(DEFUSE)), b.startViews().get(0).hand());
     }
 
     @Test

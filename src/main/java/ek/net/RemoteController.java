@@ -69,6 +69,7 @@ public final class RemoteController implements PlayerController, GameEventListen
                 }
                 switch (message) {
                     case Message.PlayNope nope -> answerNope(nope.offerId());
+                    case Message.DeclineNope decline -> declineNope(decline.offerId());
                     case Message.ActionChosen a -> answers.add(Optional.of(a));
                     case Message.NumberChosen n -> answers.add(Optional.of(n));
                     case Message.CardNamed c -> answers.add(Optional.of(c));
@@ -107,6 +108,11 @@ public final class RemoteController implements PlayerController, GameEventListen
     @Override
     public void seeTheFuture(List<Card> topCards) {
         send(new Message.SeeTheFuture(topCards));
+    }
+
+    @Override
+    public void gameStarted(GameView view) {
+        send(new Message.GameStarted(view));
     }
 
     @Override
@@ -210,6 +216,14 @@ public final class RemoteController implements PlayerController, GameEventListen
             NopeOffer offer = openOffers.get(id);
             boolean accepted = offer != null && offer.playNope();
             channel.send(new Message.NopeResult(id, accepted));
+        }
+    }
+
+    /** Runs on the reader thread: the client won't Nope; an offer that has closed is ignored. */
+    private void declineNope(int id) {
+        NopeOffer offer = openOffers.get(id);
+        if (offer != null) {
+            offer.decline();
         }
     }
 

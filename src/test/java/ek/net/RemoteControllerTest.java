@@ -66,10 +66,12 @@ class RemoteControllerTest {
         remote.onEvent(new GameEvent.Winner("Ann"));
         remote.seeTheFuture(List.of());
         remote.handChanged(new HandChange.Lost(new Card(SKIP), "Bob"));
+        remote.gameStarted(VIEW);
 
         assertEquals(new Message.Event(new GameEvent.Winner("Ann")), client.receive());
         assertEquals(new Message.SeeTheFuture(List.of()), client.receive());
         assertEquals(new Message.HandChanged(new HandChange.Lost(new Card(SKIP), "Bob")), client.receive());
+        assertEquals(new Message.GameStarted(VIEW), client.receive());
     }
 
     @Test
@@ -101,6 +103,20 @@ class RemoteControllerTest {
         assertEquals(new Message.NopeClosed(sent.offerId()), client.receive());
         window.join();
         assertEquals(1, offer.claims);
+    }
+
+    @Test
+    void clientDeclines_offerIsDeclined() throws Exception {
+        FakeOffer offer = new FakeOffer();
+        Thread window = Thread.ofVirtual().start(() -> remote.offerNope(VIEW, offer));
+        int id = ((Message.OfferNope) client.receive()).offerId();
+
+        client.send(new Message.DeclineNope(id));
+
+        assertEquals(new Message.NopeClosed(id), client.receive());
+        window.join();
+        assertEquals(1, offer.declines);
+        assertEquals(0, offer.claims);
     }
 
     @Test
@@ -148,6 +164,7 @@ class RemoteControllerTest {
 
         private boolean open = true;
         private int claims;
+        private int declines;
 
         @Override
         public String playedBy() {
@@ -182,6 +199,12 @@ class RemoteControllerTest {
             open = false;
             claims++;
             return true;
+        }
+
+        @Override
+        public synchronized void decline() {
+            declines++;
+            open = false;
         }
 
         synchronized void closeWindow() {

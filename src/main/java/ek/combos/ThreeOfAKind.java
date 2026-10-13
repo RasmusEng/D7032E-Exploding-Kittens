@@ -7,7 +7,6 @@ import ek.model.Player;
 
 /** Rule 11g: name a card and take it from another player, if they have it. */
 public final class ThreeOfAKind implements CardEffect {
-
     @Override
     public void apply(GameContext ctx, Player actor) {
         Player target = ctx.chooseTarget(actor);

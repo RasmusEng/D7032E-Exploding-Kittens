@@ -78,13 +78,6 @@ class ConsoleOutputTest {
     }
 
     @Test
-    void updatePrompt_plainStyle_printsNothing() {
-        long prompt = out.prompt("5s ");
-        out.updatePrompt(prompt, "4s ");
-        assertEquals("5s ", output.toString());
-    }
-
-    @Test
     void showBoard_plain_printsItOnce_andUpdateBoardPrintsNothing() {
         out.showBoard(recent -> List.of("BOARD"));
         out.updateBoard(recent -> List.of("BOARD"));
@@ -125,10 +118,9 @@ class ConsoleOutputTest {
     @Test
     void redraw_promptStaysOnTheLastRow_whileLinesAreAdded() {
         ansi.showBoard(recent -> List.of("BOARD"));
-        long prompt = ansi.prompt("Nope? ");
+        ansi.prompt("Nope? ");
         ansi.println("Bob played Nope!");
-        ansi.updatePrompt(prompt, "Nope? 4s ");
-        assertEquals(List.of("BOARD", "Bob played Nope!", "Nope? 4s "), lastFrame());
+        assertEquals(List.of("BOARD", "Bob played Nope!", "Nope? "), lastFrame());
     }
 
     @Test

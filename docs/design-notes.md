@@ -146,6 +146,13 @@ One short entry per decision: what, and why.
   someone was first or the window has closed. A `CountDownLatch` wakes the engine as soon
   as someone claims, so it never waits the full 5 s when a Nope is played.
 
+- **Declining closes the window early.** `NopeOffer.decline()` says "no Nope from me"; when
+  every player offered the window has declined, the same latch wakes the engine and the play
+  goes ahead at once. Bots decline as soon as they decide not to Nope, and a human answers
+  `n`. So the game only waits while somebody is still deciding; 5 s (rule 12) is the most
+  a window can last, not how long every play takes. A player who declined can't then
+  claim the same window. Over the network the client sends `DeclineNope(id)`.
+
 - **Window length is injected (`Duration`)**, default `DEFAULT_WINDOW` = 5 s (rule 12).
   Unit tests use 0 s, so there is no real waiting. One test uses real threads and a 1-hour window
   to prove a Nope from another thread closes the window immediately (no sleeps).
@@ -237,7 +244,7 @@ One short entry per decision: what, and why.
   `UncheckedIOException` and `Main` prints "Game aborted". Reconnecting or replacing the
   player with a bot is outside rules 1–17.
 
-## Console dashboard and Nope countdown (`ek.ui`)
+## Console dashboard and Nope prompt (`ek.ui`)
 
 - **With ANSI, the screen is one frame redrawn in place; nothing scrolls.** `ConsoleOutput`
   holds the frame (board, turn heading, and the question being asked: its lines and prompt)
@@ -253,13 +260,20 @@ One short entry per decision: what, and why.
   redraw while you are typing hides the typed text, though Enter still sends it.
   Plain style keeps appending lines, so tests and dumb terminals see a simple log.
 
+- **The dashboard is shown as soon as the cards are dealt.** The engine calls
+  `PlayerController.gameStarted(view)` for every player before the first turn, so a player
+  sees their hand even when someone else starts. It is a controller callback, not a
+  `GameEvent`, because the board needs that player's private `GameView` (their hand), which
+  events don't carry. It has a no-op default like `handChanged`, so bots need no change (OCP);
+  over the network it is the `GameStarted` message.
+
 - **`ConsoleOutput` keeps the last 8 event lines**, and the dashboard's *Recent* section
   shows them. Private lines ("You drew X", See The Future, "Not allowed") go there too, so
   redrawing never hides something you just learned. The history lives in `ConsoleOutput`
   because that is already the single, synchronized object the view and the controller share,
   so no extra wiring is needed in `Main` or `GameClient`.
 
-- **`Dashboard` and `NopeCountdown` are pure text** (like `HandMenu`). They are tested
+- **`Dashboard` is pure text** (like `HandMenu`). They are tested
   without I/O, and the controller only decides *when* to print them (SRP, testability).
 
 - **Colour is a `Style` injected through `ConsoleOutput`.** `Style.PLAIN` (used by tests,
@@ -267,11 +281,9 @@ One short entry per decision: what, and why.
   lines and can clear the screen and rewrite a line. `Main` makes the choice once. Rows are
   padded *before* they are painted, so escape codes never upset the box's width.
 
-- **The Nope countdown: `NopeOffer.window()` gives the window's length, not a deadline.**
-  The server's and the client's clocks can differ, so each side counts from the moment it
-  got the offer (`OfferNope.windowMillis` carries the length over the network, as a plain
-  `long`, so the deserialization filter doesn't need `java.time`). The countdown is display
-  only: `isOpen()` and the server still decide, so a client running slightly behind can't
-  get a late Nope accepted. The time is read from an injected `InstantSource`, so a test can
-  drive the countdown without waiting. `ConsoleOutput.updatePrompt` rewrites the prompt
-  only while it is still the last thing on screen, so it never overwrites an event.
+- **The Nope prompt is a question, not a countdown.** "Nope Bob's Attack? Enter = Nope,
+  n = no": Enter plays the Nope, `n` declines so the game goes on at once. A live countdown
+  was dropped: it made every play feel like a 5 s stop. `isOpen()` and the server still
+  decide when the window has closed, so an unanswered prompt is removed with "(time's up)".
+  `OfferNope.windowMillis` still carries the window's length (a plain `long`, so the
+  deserialization filter doesn't need `java.time`).

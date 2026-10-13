@@ -39,10 +39,13 @@ public final class GameEngine {
     /** Plays the game to the end and returns the winner. */
     public Player run() {
         state.turns().startAt(randomizer.nextInt(state.players().size()));    // R8
+        for (Player player : state.players()) {
+            context.controllerOf(player).gameStarted(context.viewFor(player));
+        }
         while (state.alivePlayers().size() > 1) {
             playTurn();
         }
-        Player winner = state.alivePlayers().get(0);
+        Player winner = state.alivePlayers().getFirst();
         publish(new GameEvent.Winner(winner));                                  // R13
         return winner;
     }

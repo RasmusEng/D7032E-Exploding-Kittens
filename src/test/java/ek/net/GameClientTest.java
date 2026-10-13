@@ -82,11 +82,13 @@ class GameClientTest {
         server.send(new Message.Event(new GameEvent.Winner("Ann")));
         server.send(new Message.SeeTheFuture(List.of(new Card(SKIP))));
         server.send(new Message.HandChanged(new HandChange.Drawn(new Card(NOPE))));
+        server.send(new Message.GameStarted(VIEW));
 
         endGame();
         assertEquals(List.of(new GameEvent.Winner("Ann")), view.events());
         assertEquals(List.of(List.of(new Card(SKIP))), controller.futuresSeen());
         assertEquals(List.of(new HandChange.Drawn(new Card(NOPE))), controller.handChanges());
+        assertEquals(List.of(VIEW), controller.startViews());
     }
 
     @Test
@@ -105,6 +107,17 @@ class GameClientTest {
         assertEquals(List.of(ATTACK), offer.cards());
         assertEquals(Duration.ofSeconds(3), offer.window());
         assertFalse(offer.isOpen());
+    }
+
+    @Test
+    void declinedNope_isSentToTheServer() throws Exception {
+        server.send(new Message.Welcome("Ann", List.of()));
+        controller.nopes(false);
+
+        server.send(new Message.OfferNope(1, VIEW, "Bob", List.of(ATTACK), 0, 3000));
+        assertEquals(new Message.DeclineNope(1), server.receive());
+        server.send(new Message.NopeClosed(1));
+        endGame();
     }
 
     @Test

@@ -7,7 +7,9 @@ import ek.player.NopeOffer;
 import ek.player.PlayerController;
 
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -16,14 +18,15 @@ import static ek.model.BaseCardType.NOPE;
 
 /**
  * Rule 12: after a play, gives every player holding a Nope a timed window to stop it.
- * A Nope on a Nope reverses it (Yup), and each Nope opens a new window, so the play
- * is cancelled when the number of Nopes is odd.
+ * The window closes early once everyone offered it has declined, so the game only waits
+ * as long as somebody is still deciding. A Nope on a Nope reverses it (Yup), and each
+ * Nope opens a new window, so the play is cancelled when the number of Nopes is odd.
  *
  * <p><b>Thread-safety.</b> {@link #isCancelled} runs on the engine thread and is the only
  * code here that changes game state. Offers are sent to controllers through the injected
  * {@link Executor}, so players decide in parallel. They answer by calling
- * {@link NopeOffer#playNope()} from any thread; that only claims the synchronized
- * {@link Window}, and the engine thread then moves the Nope card.
+ * {@link NopeOffer#playNope()} or {@link NopeOffer#decline()} from any thread; that only
+ * updates the synchronized {@link Window}, and the engine thread then moves the Nope card.
  */
 public final class NopeResolver {
 
@@ -62,7 +65,7 @@ public final class NopeResolver {
 
     /**
      * Offers a Nope to every alive player holding one, except whoever played last,
-     * and waits for the first taker. Returns {@code null} if nobody Nopes in time.
+     * and waits for the first taker. Returns {@code null} if nobody Nopes in time or all decline.
      */
     private Player openWindow(GameContext ctx, Player lastPlayed, Player actor,
                               List<CardType> cards, int nopes) {
@@ -72,7 +75,7 @@ public final class NopeResolver {
         if (eligible.isEmpty()) {
             return null;
         }
-        Window w = new Window(actor.name(), cards, nopes, window);
+        Window w = new Window(actor.name(), cards, nopes, window, eligible.size());
         for (Player p : eligible) {
             GameView view = ctx.viewFor(p);          // built on the engine thread
             PlayerController controller = ctx.controllerOf(p);
@@ -82,37 +85,49 @@ public final class NopeResolver {
         return w.awaitClaim(window);
     }
 
-    /** One Nope window. The first claim wins; claims after closing are refused. */
+    /**
+     * One Nope window. The first claim wins; claims after closing are refused. It is
+     * decided, and the engine woken, by a claim or by the last of the offered players declining.
+     */
     private static final class Window {
 
         private final String playedBy;
         private final List<CardType> cards;
         private final int nopesSoFar;
         private final Duration length;
-        private final CountDownLatch claimed = new CountDownLatch(1);
+        private final int offered;
+        private final CountDownLatch decided = new CountDownLatch(1);
+        private final Set<Player> declined = new HashSet<>();   // guarded by this
         private Player claimer;           // guarded by this
         private boolean open = true;      // guarded by this
 
-        Window(String playedBy, List<CardType> cards, int nopesSoFar, Duration length) {
+        Window(String playedBy, List<CardType> cards, int nopesSoFar, Duration length, int offered) {
             this.playedBy = playedBy;
             this.cards = List.copyOf(cards);
             this.nopesSoFar = nopesSoFar;
             this.length = length;
+            this.offered = offered;
         }
 
         synchronized boolean claim(Player player) {
-            if (!open || claimer != null) {
+            if (!open || claimer != null || declined.contains(player)) {
                 return false;
             }
             claimer = player;
-            claimed.countDown();
+            decided.countDown();
             return true;
         }
 
-        /** Waits until claimed or the time is up, then closes the window. */
+        synchronized void decline(Player player) {
+            if (open && claimer == null && declined.add(player) && declined.size() == offered) {
+                decided.countDown();
+            }
+        }
+
+        /** Waits until claimed, everyone declined, or the time is up, then closes the window. */
         Player awaitClaim(Duration timeout) {
             try {
-                claimed.await(timeout.toNanos(), TimeUnit.NANOSECONDS);
+                decided.await(timeout.toNanos(), TimeUnit.NANOSECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();   // keep the flag; close the window as timed out
             }
@@ -152,6 +167,10 @@ public final class NopeResolver {
 
                 public boolean playNope() {
                     return claim(player);
+                }
+
+                public void decline() {
+                    Window.this.decline(player);
                 }
             };
         }

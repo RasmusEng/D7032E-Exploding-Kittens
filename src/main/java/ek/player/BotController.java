@@ -88,14 +88,17 @@ public final class BotController implements PlayerController {
     }
 
     /**
-     * Nopes half the time, after a random answer time of 2–5 seconds. With the 5-second
+     * Nopes half the time, after a random answer time of 1–5 seconds. With the 5-second
      * window a slow answer can be too late; the offer then refuses it, as for a human.
+     * Otherwise it declines at once, so the game doesn't wait for it.
      */
     @Override
     public void offerNope(GameView view, NopeOffer offer) {
         if (randomizer.nextInt(2) == 0) {
             sleeper.sleep(nopeDelay());
             offer.playNope();
+        } else {
+            offer.decline();
         }
     }
 

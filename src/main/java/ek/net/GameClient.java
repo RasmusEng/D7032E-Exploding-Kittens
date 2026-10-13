@@ -96,6 +96,7 @@ public final class GameClient {
                     new Message.NumberChosen(controller.chooseCardToGive(r.view(), r.requester())));
             case Message.NameCard r -> channel.send(new Message.CardNamed(controller.nameCard(r.view())));
             case Message.SeeTheFuture s -> controller.seeTheFuture(s.topCards());
+            case Message.GameStarted g -> controller.gameStarted(g.view());
             case Message.HandChanged h -> controller.handChanged(h.change());
             case Message.OfferNope o -> startOffer(o);
             case Message.NopeClosed c -> {
@@ -137,7 +138,7 @@ public final class GameClient {
 
         private final Message.OfferNope message;
         private final CompletableFuture<Boolean> result = new CompletableFuture<>();
-        private final AtomicBoolean played = new AtomicBoolean();
+        private final AtomicBoolean answered = new AtomicBoolean();
         private volatile boolean open = true;
 
         ClientNopeOffer(Message.OfferNope message) {
@@ -172,7 +173,7 @@ public final class GameClient {
         /** Asks the server and waits for its answer. Only the first call is sent. */
         @Override
         public boolean playNope() {
-            if (!open || !played.compareAndSet(false, true)) {
+            if (!open || !answered.compareAndSet(false, true)) {
                 return false;
             }
             try {
@@ -181,6 +182,18 @@ public final class GameClient {
                 return false;
             }
             return result.join();
+        }
+
+        /** Tells the server, unless this offer was already answered or has closed. */
+        @Override
+        public void decline() {
+            if (open && answered.compareAndSet(false, true)) {
+                try {
+                    channel.send(new Message.DeclineNope(message.offerId()));
+                } catch (IOException e) {
+                    // the connection is gone; the reader ends the game for this client
+                }
+            }
         }
 
         void close() {

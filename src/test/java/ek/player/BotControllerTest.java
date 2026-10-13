@@ -109,6 +109,7 @@ class BotControllerTest {
         for (long seed = 0; seed < 50; seed++) {
             List<Duration> waits = new ArrayList<>();
             boolean[] nopedAfterWait = {false};
+            boolean[] declined = {false};
             BotController bot = new BotController(new JavaRandomizer(new Random(seed)),
                     new BaseGame().cardEffects().keySet(), NAMEABLE, waits::add);
             bot.offerNope(view(NOPE), new NopeOffer() {
@@ -118,13 +119,15 @@ class BotControllerTest {
                 public Duration window() { return Duration.ofSeconds(5); }
                 public boolean isOpen() { return true; }
                 public boolean playNope() { nopedAfterWait[0] = waits.size() == 1; return true; }
+                public void decline() { declined[0] = true; }
             });
+            assertNotEquals(nopedAfterWait[0], declined[0], "either Nopes or declines");
             if (nopedAfterWait[0]) {
                 Duration wait = waits.getFirst();
                 assertTrue(wait.compareTo(Duration.ofSeconds(2)) >= 0 && wait.compareTo(Duration.ofSeconds(5)) <= 0,
                         "waited " + wait);
             } else {
-                assertTrue(waits.isEmpty(), "no wait when the bot doesn't Nope");
+                assertTrue(waits.isEmpty(), "declines at once when the bot doesn't Nope");
             }
         }
     }

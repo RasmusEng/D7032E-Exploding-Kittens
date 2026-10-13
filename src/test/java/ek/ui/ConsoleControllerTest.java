@@ -12,10 +12,8 @@ import org.junit.jupiter.api.Test;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import java.io.Reader;
 import java.io.StringReader;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 
 import static ek.model.BaseCardType.*;
@@ -43,6 +41,7 @@ class ConsoleControllerTest {
     private static class FakeOffer implements NopeOffer {
         boolean open = true;
         boolean noped;
+        boolean declined;
 
         public String playedBy() { return "Bob"; }
         public List<CardType> cards() { return List.of(ATTACK); }
@@ -53,6 +52,7 @@ class ConsoleControllerTest {
             noped = open;
             return open;
         }
+        public void decline() { declined = true; }
     }
 
     @Test
@@ -133,6 +133,14 @@ class ConsoleControllerTest {
     }
 
     @Test
+    void gameStarted_showsTheDashboard_withoutAskingAnything() {
+        controller("").gameStarted(view(ATTACK, SKIP));
+        assertTrue(printed().contains("1) Attack"));
+        assertTrue(printed().contains("Bob 3"));
+        assertTrue(printed().contains("Deck 10"));
+    }
+
+    @Test
     void chooseKittenPosition_outOfRange_askedAgain() {
         assertEquals(2, controller("5\n-1\n2\n").chooseKittenPosition(view(), 3));
     }
@@ -175,34 +183,26 @@ class ConsoleControllerTest {
     }
 
     @Test
-    void offerNope_plainConsole_showsTheWindowLength() {
+    void offerNope_asksEnterOrNo_withoutACountdown() {
         controller("\n").offerNope(view(NOPE), new FakeOffer());
-        assertTrue(printed().contains("Nope Bob's Attack? [Enter to Nope, 5s]"));
+        assertTrue(printed().contains("Nope Bob's Attack? Enter = Nope, n = no"));
+        assertFalse(printed().contains("■"));
     }
 
     @Test
-    void offerNope_colourConsole_countsDown() {
-        Instant[] now = {Instant.EPOCH};
-        FakeOffer offer = new FakeOffer() {
-            int checks;
+    void offerNope_n_declines_soTheGameGoesOn() {
+        FakeOffer offer = new FakeOffer();
+        controller("n\n").offerNope(view(NOPE), offer);
+        assertTrue(offer.declined);
+        assertFalse(offer.noped);
+    }
 
-            @Override
-            public boolean isOpen() {
-                now[0] = now[0].plusSeconds(1);       // a second passes at every check
-                return ++checks <= 5;
-            }
-        };
-        Reader nothingTyped = new Reader() {
-            public int read(char[] buf, int off, int len) { throw new AssertionError("nothing to read"); }
-            public boolean ready() { return false; }
-            public void close() { }
-        };
-        new ConsoleController(new BufferedReader(nothingTyped),
-                new ConsoleOutput(new PrintStream(output, true), Style.ANSI), List.of(), () -> now[0])
-                .offerNope(view(NOPE), offer);
-        assertTrue(printed().contains("■■■■■ 5s"));
-        assertTrue(printed().contains("■■■□□ 3s"));
-        assertFalse(printed().endsWith("s "), "the expired prompt is removed from the screen");
+    @Test
+    void offerNope_otherInput_askedAgain() {
+        FakeOffer offer = new FakeOffer();
+        controller("x\n\n").offerNope(view(NOPE), offer);
+        assertTrue(offer.noped);
+        assertTrue(printed().contains("Press Enter to Nope, or n to let it go."));
     }
 
     @Test

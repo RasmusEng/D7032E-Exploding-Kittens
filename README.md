@@ -68,7 +68,7 @@ On your turn, enter the numbers of the cards to play, then press Enter:
 - `d`: draw a card, which ends your turn (a pass).
 
 When another player plays a card and you hold a Nope, you have 5 seconds to press Enter to Nope it. If you
-don't want to, let the offer run out. The prompt counts down the seconds left.
+don't want to, type `n` and Enter so the game goes on at once (otherwise the offer runs out after 5 seconds).
 
 The screen shows a dashboard (the deck size, the other players' hand sizes, the latest events
 and your hand) that is redrawn in place whenever something happens, so the terminal never scrolls.

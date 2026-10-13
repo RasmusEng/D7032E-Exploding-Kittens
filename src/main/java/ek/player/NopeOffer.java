@@ -38,4 +38,11 @@ public interface NopeOffer {
      *         or another player was first
      */
     boolean playNope();
+
+    /**
+     * Says you won't Nope. Once every player offered the window has declined, it closes
+     * without waiting out its time, so the game doesn't stall. Has no effect after
+     * {@link #playNope()} or once the window has closed.
+     */
+    void decline();
 }

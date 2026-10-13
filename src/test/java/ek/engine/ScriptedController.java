@@ -30,6 +30,7 @@ public final class ScriptedController implements PlayerController {
     private final Deque<CardType> namedCards = new ArrayDeque<>();
     private final List<List<Card>> futuresSeen = new ArrayList<>();
     private final List<GameView> actionViews = new ArrayList<>();
+    private final List<GameView> startViews = new ArrayList<>();
     private final Deque<Boolean> nopeAnswers = new ArrayDeque<>();
     private final List<NopeOffer> nopeOffers = new ArrayList<>();
     private final List<HandChange> handChanges = new ArrayList<>();
@@ -130,7 +131,14 @@ public final class ScriptedController implements PlayerController {
         nopeOffers.add(offer);
         if (Boolean.TRUE.equals(nopeAnswers.poll())) {
             offer.playNope();
+        } else {
+            offer.decline();
         }
+    }
+
+    @Override
+    public void gameStarted(GameView view) {
+        startViews.add(view);
     }
 
     @Override
@@ -168,6 +176,11 @@ public final class ScriptedController implements PlayerController {
     }
 
     /** The view passed to each {@link #chooseAction} call, in order. */
+    /** The views passed to {@code gameStarted}; one per game. */
+    public List<GameView> startViews() {
+        return startViews;
+    }
+
     public List<GameView> actionViews() {
         return actionViews;
     }

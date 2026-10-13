@@ -135,7 +135,7 @@ public final class ConsoleOutput {
     /**
      * Prints {@code text} and leaves the cursor after it for the answer.
      *
-     * @return an id for {@link #answered}, {@link #updatePrompt} and {@link #closePrompt}
+     * @return an id for {@link #answered} and {@link #closePrompt}
      */
     public synchronized long prompt(String text) {
         if (redraws()) {
@@ -148,17 +148,6 @@ public final class ConsoleOutput {
         }
         openPrompt = ++promptCount;
         return openPrompt;
-    }
-
-    /**
-     * Replaces the text of the prompt if it is still open and the style can rewrite it;
-     * otherwise does nothing, so it never overwrites a line printed after it.
-     */
-    public synchronized void updatePrompt(long prompt, String text) {
-        if (openPrompt == prompt && redraws()) {
-            promptText = text;
-            redraw(false);
-        }
     }
 
     /** The user answered the prompt with {@code answer}; the terminal has already moved to a new line. */
