@@ -18,7 +18,6 @@ import java.time.Instant;
 import java.time.InstantSource;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -36,7 +35,6 @@ import java.util.stream.Collectors;
 public final class ConsoleController implements PlayerController {
 
     private static final long NOPE_POLL_MILLIS = 50;
-    private static final Set<String> NOPE_ANSWERS = Set.of("y", "n", "yes", "no");
 
     private final BufferedReader in;
     private final ConsoleOutput out;
@@ -66,8 +64,8 @@ public final class ConsoleController implements PlayerController {
         HandMenu hand = new HandMenu(view.hand());
         out.showBoard(board(view, hand));
         while (true) {
-            String line = ask("Play cards by number (2, or 3 3 for a pair), p = pass and draw, h = help: ");
-            if (line.equalsIgnoreCase("p") || line.equalsIgnoreCase("pass")) {
+            String line = ask("Play cards by number (2, or 3 3 for a pair), d = draw, h = help: ");
+            if (line.equalsIgnoreCase("d") || line.equalsIgnoreCase("draw")) {
                 return new TurnAction.Pass();
             }
             if (line.equalsIgnoreCase("h") || line.equalsIgnoreCase("help")) {
@@ -129,8 +127,8 @@ public final class ConsoleController implements PlayerController {
     }
 
     /**
-     * Asks y/n until answered or the window closes, redrawing the countdown each second
-     * if the terminal can. Anything but y means no.
+     * Shows the offer until Enter is pressed (play Nope) or the window closes, redrawing the
+     * countdown each second if the terminal can. There is no "no": the offer just expires.
      */
     @Override
     public void offerNope(GameView view, NopeOffer offer) {
@@ -147,7 +145,7 @@ public final class ConsoleController implements PlayerController {
             Optional<String> line = readLineIfOpen(offer);
             if (line.isPresent()) {
                 out.answered(prompt, line.get());
-                if (line.get().trim().equalsIgnoreCase("y") && !offer.playNope()) {
+                if (!offer.playNope()) {
                     out.event("Too late!", Tone.MUTED);
                 }
                 return;
@@ -191,18 +189,19 @@ public final class ConsoleController implements PlayerController {
     }
 
     /**
-     * Prompts and reads a trimmed line. A y/n typed after a Nope window closed would
-     * otherwise land here as an answer, so it is explained and the question asked again.
+     * Prompts and reads a trimmed, non-empty line. An empty line is an Enter meant for a
+     * Nope window that has closed (no prompt here takes an empty answer), so it is explained
+     * and the question asked again.
      */
     private String ask(String text) {
         while (true) {
             long prompt = out.prompt(text);
             String line = readLine().trim();
             out.answered(prompt, line);
-            if (!NOPE_ANSWERS.contains(line.toLowerCase())) {
+            if (!line.isEmpty()) {
                 return line;
             }
-            out.println("(That Nope window has closed.)");
+            out.println("(No Nope window is open.)");
         }
     }
 

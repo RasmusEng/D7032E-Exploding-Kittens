@@ -4,7 +4,9 @@ import ek.model.Card;
 import ek.model.CardType;
 import ek.player.GameView.OpponentView;
 import ek.util.Randomizer;
+import ek.util.Sleeper;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -18,18 +20,26 @@ import java.util.Set;
  */
 public final class BotController implements PlayerController {
 
+    /** Shortest and longest time the bot takes to play a Nope, so humans get a chance first. */
+    static final Duration MIN_NOPE_DELAY = Duration.ofSeconds(1);
+    static final Duration MAX_NOPE_DELAY = Duration.ofSeconds(5);
+
     private final Randomizer randomizer;
     private final Set<CardType> playableAlone;
     private final List<CardType> nameableCards;
+    private final Sleeper sleeper;
 
     /**
      * @param playableAlone card types that have an effect when played on their own
      * @param nameableCards card types the bot may ask for with three of a kind
+     * @param sleeper       waits the bot's answer time before a Nope; tests pass {@link Sleeper#NONE}
      */
-    public BotController(Randomizer randomizer, Set<CardType> playableAlone, List<CardType> nameableCards) {
+    public BotController(Randomizer randomizer, Set<CardType> playableAlone, List<CardType> nameableCards,
+                         Sleeper sleeper) {
         this.randomizer = randomizer;
         this.playableAlone = Set.copyOf(playableAlone);
         this.nameableCards = List.copyOf(nameableCards);
+        this.sleeper = sleeper;
     }
 
     /** Picks uniformly among Pass and every legal play: single cards, pairs and triples. */
@@ -77,12 +87,22 @@ public final class BotController implements PlayerController {
         // a random bot doesn't use what it sees
     }
 
-    /** Nopes half the time. */
+    /**
+     * Nopes half the time, after a random answer time of 2–5 seconds. With the 5-second
+     * window a slow answer can be too late; the offer then refuses it, as for a human.
+     */
     @Override
     public void offerNope(GameView view, NopeOffer offer) {
         if (randomizer.nextInt(2) == 0) {
+            sleeper.sleep(nopeDelay());
             offer.playNope();
         }
+    }
+
+    /** Uniform in [{@link #MIN_NOPE_DELAY}, {@link #MAX_NOPE_DELAY}], to the millisecond. */
+    private Duration nopeDelay() {
+        long spread = MAX_NOPE_DELAY.minus(MIN_NOPE_DELAY).toMillis(); // So the player also has time to nope a card
+        return MIN_NOPE_DELAY.plusMillis(randomizer.nextInt((int) spread + 1));
     }
 
     private static Set<CardType> distinctTypes(List<Card> hand) {

@@ -18,8 +18,11 @@ import ek.model.Player;
 import ek.player.GameView.OpponentView;
 import ek.rules.GameSetup;
 import ek.util.JavaRandomizer;
+import ek.util.Sleeper;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +38,7 @@ class BotControllerTest {
 
     private static BotController bot(long seed) {
         return new BotController(new JavaRandomizer(new Random(seed)),
-                new BaseGame().cardEffects().keySet(), NAMEABLE);
+                new BaseGame().cardEffects().keySet(), NAMEABLE, Sleeper.NONE);
     }
 
     private static GameView view(CardType... hand) {
@@ -89,7 +92,7 @@ class BotControllerTest {
             var deck = new GameSetup(new DeckFactory(List.of(new BaseGame())), randomizer).setUp(players);
             Map<Player, PlayerController> controllers = new LinkedHashMap<>();
             players.forEach(p -> controllers.put(p, new BotController(randomizer,
-                    new BaseGame().cardEffects().keySet(), NAMEABLE)));
+                    new BaseGame().cardEffects().keySet(), NAMEABLE, Sleeper.NONE)));
             RecordingListener listener = new RecordingListener();
 
             Player winner = new GameEngine(new GameState(players, deck, new DiscardPile()), controllers,
@@ -98,6 +101,31 @@ class BotControllerTest {
 
             assertEquals(List.of(winner), players.stream().filter(Player::isAlive).toList());
             assertTrue(listener.eventsOf(GameEvent.MoveRejected.class).isEmpty(), "bots only make legal plays");
+        }
+    }
+
+    @Test
+    void offerNope_waitsTwoToFiveSecondsBeforeNoping() {
+        for (long seed = 0; seed < 50; seed++) {
+            List<Duration> waits = new ArrayList<>();
+            boolean[] nopedAfterWait = {false};
+            BotController bot = new BotController(new JavaRandomizer(new Random(seed)),
+                    new BaseGame().cardEffects().keySet(), NAMEABLE, waits::add);
+            bot.offerNope(view(NOPE), new NopeOffer() {
+                public String playedBy() { return "A"; }
+                public List<CardType> cards() { return List.of(ATTACK); }
+                public int nopesSoFar() { return 0; }
+                public Duration window() { return Duration.ofSeconds(5); }
+                public boolean isOpen() { return true; }
+                public boolean playNope() { nopedAfterWait[0] = waits.size() == 1; return true; }
+            });
+            if (nopedAfterWait[0]) {
+                Duration wait = waits.getFirst();
+                assertTrue(wait.compareTo(Duration.ofSeconds(2)) >= 0 && wait.compareTo(Duration.ofSeconds(5)) <= 0,
+                        "waited " + wait);
+            } else {
+                assertTrue(waits.isEmpty(), "no wait when the bot doesn't Nope");
+            }
         }
     }
 }

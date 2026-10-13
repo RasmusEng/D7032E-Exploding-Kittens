@@ -95,7 +95,7 @@ public final class Main {
         Randomizer randomizer = new JavaRandomizer();
         List<Expansion> expansions = List.of(new BaseGame());
         Map<CardType, CardEffect> effects = new LinkedHashMap<>();
-        expansions.forEach(e -> effects.putAll(e.cardEffects())); // Kollar expansions och laddar in de
+        expansions.forEach(e -> effects.putAll(e.cardEffects())); // Loading all the expansions including the base game
         List<CardType> nameable = List.of(BaseCardType.values());
 
         Map<Player, PlayerController> controllers = new LinkedHashMap<>();
@@ -118,7 +118,8 @@ public final class Main {
 
         listeners.add(new ConsoleView(console, host.name(), Sleeper.REAL));
         for (int i = 1; i <= bots; i++) {
-            controllers.put(new Player("Bot " + i), new BotController(randomizer, effects.keySet(), nameable));
+            controllers.put(new Player("Bot " + i),
+                    new BotController(randomizer, effects.keySet(), nameable, Sleeper.REAL));
         }
         List<Player> players = new ArrayList<>(controllers.keySet());
 

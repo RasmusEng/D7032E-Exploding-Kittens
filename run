@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Builds and starts a game.
+#   ./run <numPlayers> <numBots>   host a game (numPlayers = humans incl. you)
+#   ./run client <ip>              join a game hosted on <ip>
+set -euo pipefail
+cd "$(dirname "$0")"
+
+if [ $# -ne 2 ]; then
+    echo "Usage: ./run <numPlayers> <numBots>   or   ./run client <ip>" >&2
+    exit 1
+fi
+
+rm -rf out/classes
+javac --release 21 -d out/classes $(find src/main -name '*.java')
+
+if [ "$1" = "client" ]; then
+    exec java -cp out/classes ek.app.Main client "$2"
+else
+    exec java -cp out/classes ek.app.Main server "$1" "$2"
+fi
