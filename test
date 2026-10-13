@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Clean build, compile tests and run the full test suite.
+#   ./test                      all tests
+#   ./test <junit options>      e.g. ./test --select-class ek.rules.RulesComplianceTest
+set -euo pipefail
+cd "$(dirname "$0")"
+
+JUNIT=lib/junit-platform-console-standalone.jar
+
+rm -rf out
+javac --release 21 -d out/classes $(find src/main -name '*.java')
+javac --release 21 -d out/test-classes -cp out/classes:$JUNIT $(find src/test/java -name '*.java')
+
+if [ $# -eq 0 ]; then
+    set -- --scan-class-path
+fi
+exec java -jar $JUNIT execute --class-path out/classes:out/test-classes "$@"

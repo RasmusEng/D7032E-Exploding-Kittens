@@ -65,10 +65,10 @@ On your turn, enter the numbers of the cards to play, then press Enter:
 
 - `3`: play card 3.
 - `2 5`: play cards 2 and 5 together. Two or three cards with the same name make a combo.
-- `p`: pass, which draws a card and ends your turn.
+- `d`: draw a card, which ends your turn (a pass).
 
-When another player plays a card and you hold a Nope, you have 5 seconds to answer `y` to Nope it. The prompt
-counts down the seconds left.
+When another player plays a card and you hold a Nope, you have 5 seconds to press Enter to Nope it. If you
+don't want to, let the offer run out. The prompt counts down the seconds left.
 
 The screen shows a dashboard (the deck size, the other players' hand sizes, the latest events
 and your hand) that is redrawn in place whenever something happens, so the terminal never scrolls.

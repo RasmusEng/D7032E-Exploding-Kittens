@@ -56,8 +56,8 @@ class ConsoleControllerTest {
     }
 
     @Test
-    void chooseAction_p_passes() {
-        assertEquals(new TurnAction.Pass(), controller("p\n").chooseAction(view(ATTACK)));
+    void chooseAction_d_passes() {
+        assertEquals(new TurnAction.Pass(), controller("d\n").chooseAction(view(ATTACK)));
     }
 
     @Test
@@ -69,13 +69,13 @@ class ConsoleControllerTest {
     @Test
     void chooseAction_invalidInput_askedAgain() {
         // not a number, out of range, same card twice, then pass
-        assertEquals(new TurnAction.Pass(), controller("x\n9\n1 1\n\np\n").chooseAction(view(ATTACK)));
-        assertEquals(4, printed().split("Invalid input", -1).length - 1);
+        assertEquals(new TurnAction.Pass(), controller("x\n9\n1 1\nd\n").chooseAction(view(ATTACK)));
+        assertEquals(3, printed().split("Invalid input", -1).length - 1);
     }
 
     @Test
     void chooseAction_showsHandAndOpponents() {
-        controller("p\n").chooseAction(view(ATTACK, SKIP));
+        controller("d\n").chooseAction(view(ATTACK, SKIP));
         assertTrue(printed().contains("1) Attack"));
         assertTrue(printed().contains("2) Skip"));
         assertTrue(printed().contains("Bob 3"));
@@ -86,7 +86,7 @@ class ConsoleControllerTest {
     void chooseAction_dashboardShowsRecentEvents() {
         ConsoleOutput out = new ConsoleOutput(new PrintStream(output, true));
         out.event("Bob played Attack.", Style.Tone.NORMAL);
-        new ConsoleController(new BufferedReader(new StringReader("p\n")), out, List.of())
+        new ConsoleController(new BufferedReader(new StringReader("d\n")), out, List.of())
                 .chooseAction(view(SKIP));
         assertTrue(printed().lines().anyMatch(l -> l.startsWith("│ Bob played Attack.")));
     }
@@ -110,14 +110,14 @@ class ConsoleControllerTest {
 
     @Test
     void chooseAction_h_explainsTheCards_thenAsksAgain() {
-        assertEquals(new TurnAction.Pass(), controller("h\np\n").chooseAction(view(SKIP)));
+        assertEquals(new TurnAction.Pass(), controller("h\nd\n").chooseAction(view(SKIP)));
         assertTrue(printed().contains("Skip: " + SKIP.description()));
     }
 
     @Test
-    void lateNopeAnswer_isNotTakenAsAnAnswerToTheNextPrompt() {
-        assertEquals(new TurnAction.Pass(), controller("y\np\n").chooseAction(view(SKIP)));
-        assertTrue(printed().contains("Nope window has closed"));
+    void lateNopeEnter_isNotTakenAsAnAnswerToTheNextPrompt() {
+        assertEquals(new TurnAction.Pass(), controller("\nd\n").chooseAction(view(SKIP)));
+        assertTrue(printed().contains("No Nope window is open"));
         assertFalse(printed().contains("Invalid input"));
     }
 
@@ -167,17 +167,17 @@ class ConsoleControllerTest {
     }
 
     @Test
-    void offerNope_y_playsNope() {
+    void offerNope_enter_playsNope() {
         FakeOffer offer = new FakeOffer();
-        controller("y\n").offerNope(view(NOPE), offer);
+        controller("\n").offerNope(view(NOPE), offer);
         assertTrue(offer.noped);
         assertTrue(printed().contains("Nope Bob's Attack?"));
     }
 
     @Test
     void offerNope_plainConsole_showsTheWindowLength() {
-        controller("n\n").offerNope(view(NOPE), new FakeOffer());
-        assertTrue(printed().contains("Nope Bob's Attack? (y/n, 5s)"));
+        controller("\n").offerNope(view(NOPE), new FakeOffer());
+        assertTrue(printed().contains("Nope Bob's Attack? [Enter to Nope, 5s]"));
     }
 
     @Test
@@ -206,17 +206,10 @@ class ConsoleControllerTest {
     }
 
     @Test
-    void offerNope_n_doesNotNope() {
-        FakeOffer offer = new FakeOffer();
-        controller("n\n").offerNope(view(NOPE), offer);
-        assertFalse(offer.noped);
-    }
-
-    @Test
     void offerNope_windowClosed_leavesInputForNextPrompt() {
         FakeOffer offer = new FakeOffer();
         offer.open = false;
-        ConsoleController controller = controller("p\n");
+        ConsoleController controller = controller("d\n");
         controller.offerNope(view(NOPE), offer);
         assertFalse(offer.noped);
         assertEquals(new TurnAction.Pass(), controller.chooseAction(view()));
