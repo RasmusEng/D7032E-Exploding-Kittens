@@ -6,6 +6,7 @@ import ek.engine.RecordingListener;
 import ek.engine.ScriptedController;
 import ek.expansion.BaseGame;
 import ek.expansion.DeckFactory;
+import ek.expansion.FasterGame;
 import ek.model.Deck;
 import ek.model.Player;
 import ek.util.Randomizer;
@@ -86,6 +87,19 @@ class RulesComplianceTest {
             Deck deck = setUp(players, NO_SHUFFLE);
             assertEquals(n - 1, deck.count(EXPLODING_KITTEN), n + " players");
             players.forEach(p -> assertFalse(p.hand().contains(EXPLODING_KITTEN)));
+        }
+    }
+
+    @Test
+    void rule06_fasterVariant_removesAThirdBeforeTheKittens_stillOneFewerKittenThanPlayers() {
+        for (int n = 2; n <= 5; n++) {
+            List<Player> players = players(n);
+            Deck deck = new GameSetup(new DeckFactory(List.of(new BaseGame())), NO_SHUFFLE,
+                    List.of(new FasterGame())).setUp(players);
+            int afterDeal = (n == 5 ? 47 : 48) - 7 * n;
+            int kept = afterDeal - afterDeal / 3;
+            assertEquals(kept + n - 1, deck.size(), n + " players");
+            assertEquals(n - 1, deck.count(EXPLODING_KITTEN), n + " players");
         }
     }
 
