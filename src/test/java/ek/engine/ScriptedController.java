@@ -6,6 +6,7 @@ import ek.player.GameView;
 import ek.player.GameView.OpponentView;
 import ek.player.HandChange;
 import ek.player.NopeOffer;
+import ek.player.NopeWindow;
 import ek.player.PlayerController;
 import ek.player.TurnAction;
 
@@ -13,6 +14,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -32,7 +34,9 @@ public final class ScriptedController implements PlayerController {
     private final List<GameView> actionViews = new ArrayList<>();
     private final List<GameView> startViews = new ArrayList<>();
     private final Deque<Boolean> nopeAnswers = new ArrayDeque<>();
-    private final List<NopeOffer> nopeOffers = new ArrayList<>();
+    // Nope windows may arrive on other threads
+    private final List<NopeOffer> nopeOffers = new CopyOnWriteArrayList<>();
+    private final List<NopeWindow> watchedWindows = new CopyOnWriteArrayList<>();
     private final List<HandChange> handChanges = new ArrayList<>();
     private Integer defaultPosition;
     private int positionRequests;
@@ -129,11 +133,15 @@ public final class ScriptedController implements PlayerController {
     @Override
     public void offerNope(GameView view, NopeOffer offer) {
         nopeOffers.add(offer);
-        if (Boolean.TRUE.equals(nopeAnswers.poll())) {
+        // scripted answers are for the windows this player can Nope in
+        if (offer.canNope() && Boolean.TRUE.equals(nopeAnswers.poll())) {
             offer.playNope();
-        } else {
-            offer.decline();
         }
+    }
+
+    @Override
+    public void watchNopeWindow(GameView view, NopeWindow window) {
+        watchedWindows.add(window);
     }
 
     @Override
@@ -171,6 +179,11 @@ public final class ScriptedController implements PlayerController {
     }
 
     /** Every Nope offer received, in order. */
+    /** Windows opened on this player's own plays or Nopes. */
+    public List<NopeWindow> watchedWindows() {
+        return watchedWindows;
+    }
+
     public List<NopeOffer> nopeOffers() {
         return nopeOffers;
     }

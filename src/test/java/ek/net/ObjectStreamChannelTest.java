@@ -41,15 +41,14 @@ class ObjectStreamChannelTest {
                 new Message.NameCard(VIEW),
                 new Message.GameStarted(VIEW),
                 new Message.SeeTheFuture(List.of(new Card(EXPLODING_KITTEN), new Card(SKIP))),
-                new Message.OfferNope(7, VIEW, "Bob", List.of(ATTACK), 1, 5000),
+                new Message.OfferNope(7, VIEW, "Bob", List.of(ATTACK), 1, 5000, true),
                 new Message.NopeClosed(7),
                 new Message.NopeResult(7, true),
                 new Message.ActionChosen(new TurnAction.Pass()),
                 new Message.ActionChosen(new TurnAction.Play(TACO_CAT, TACO_CAT)),
                 new Message.NumberChosen(3),
                 new Message.CardNamed(DEFUSE),
-                new Message.PlayNope(7),
-                new Message.DeclineNope(7));
+                new Message.PlayNope(7));
         try (ObjectStreamChannel channel = selfConnected()) {
             for (Message message : messages) {
                 channel.send(message);

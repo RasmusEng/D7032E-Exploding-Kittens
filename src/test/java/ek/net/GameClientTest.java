@@ -96,7 +96,7 @@ class GameClientTest {
         server.send(new Message.Welcome("Ann", List.of()));
         controller.nopes(true);
 
-        server.send(new Message.OfferNope(1, VIEW, "Bob", List.of(ATTACK), 0, 3000));
+        server.send(new Message.OfferNope(1, VIEW, "Bob", List.of(ATTACK), 0, 3000, true));
         assertEquals(new Message.PlayNope(1), server.receive());
         server.send(new Message.NopeResult(1, true));
         server.send(new Message.NopeClosed(1));
@@ -106,18 +106,29 @@ class GameClientTest {
         assertEquals("Bob", offer.playedBy());
         assertEquals(List.of(ATTACK), offer.cards());
         assertEquals(Duration.ofSeconds(3), offer.window());
+        assertTrue(offer.canNope());
         assertFalse(offer.isOpen());
     }
 
     @Test
-    void declinedNope_isSentToTheServer() throws Exception {
+    void offerWithoutANope_isShownButCantBeClaimed_andEndsWhenTheServerClosesIt() throws Exception {
         server.send(new Message.Welcome("Ann", List.of()));
-        controller.nopes(false);
+        controller.nopes(true);
 
-        server.send(new Message.OfferNope(1, VIEW, "Bob", List.of(ATTACK), 0, 3000));
-        assertEquals(new Message.DeclineNope(1), server.receive());
+        server.send(new Message.OfferNope(1, VIEW, "Bob", List.of(ATTACK), 0, 3000, false));
+        // nothing goes back to the server, so wait until the offer has reached the player
+        assertTimeoutPreemptively(Duration.ofSeconds(2), () -> {
+            while (controller.nopeOffers().isEmpty()) {
+                Thread.sleep(1);
+            }
+        });
         server.send(new Message.NopeClosed(1));
         endGame();
+
+        var offer = controller.nopeOffers().get(0);
+        assertFalse(offer.canNope());
+        assertFalse(offer.playNope());
+        assertFalse(offer.isOpen());
     }
 
     @Test

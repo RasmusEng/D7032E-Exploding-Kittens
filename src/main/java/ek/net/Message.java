@@ -100,9 +100,11 @@ public sealed interface Message extends Serializable {
      * A Nope window opened; {@code offerId} links the later messages to this offer.
      * {@code windowMillis} is its length, so the client can count down from when it arrives
      * (a plain number, so the {@link ObjectStreamChannel#FILTER} needs no {@code java.time} classes).
+     * {@code canNope} says whether this player holds a Nope; every player but the last one to
+     * play gets the offer either way.
      */
     record OfferNope(int offerId, GameView view, String playedBy, List<CardType> cards, int nopesSoFar,
-                     long windowMillis) implements ToClient {
+                     long windowMillis, boolean canNope) implements ToClient {
         public OfferNope {
             Objects.requireNonNull(view, "view");
             Objects.requireNonNull(playedBy, "playedBy");
@@ -139,9 +141,5 @@ public sealed interface Message extends Serializable {
 
     /** The client plays Nope on the given offer. */
     record PlayNope(int offerId) implements ToServer {
-    }
-
-    /** The client won't Nope the given offer. */
-    record DeclineNope(int offerId) implements ToServer {
     }
 }

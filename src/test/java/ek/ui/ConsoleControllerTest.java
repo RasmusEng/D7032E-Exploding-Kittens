@@ -51,7 +51,7 @@ class ConsoleControllerTest {
             noped = open;
             return open;
         }
-        public void decline() { }
+        public boolean canNope() { return true; }
     }
 
     @Test
