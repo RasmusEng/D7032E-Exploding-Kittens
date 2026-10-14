@@ -312,3 +312,80 @@ One short entry per decision: what, and why.
   order (`TurnState` is clockwise only), combos (`PlayResolver` only matches identical cards),
   new player decisions (each is a new `PlayerController` method and `Message` record), and
   face-up cards (`Card` has no visibility state).
+
+## Setup menu, expansions and variants, requirement 15 (`ek.app`, `ek.expansion`, `ek.rules`, `ek.ui`)
+
+- **`GameConfig` (record, `ek.rules`) is the host's choices as one validated value:** humans,
+  bots, expansions (base game always first) and variants. Its constructor checks at least 1
+  human, no negative bots, and a total inside `PlayerRange.of(expansions)`. Both ways of
+  starting a host (menu and `server <humans> <bots>`) build one, so the two can't disagree.
+  `GameConfig.of` puts `BaseGame` first and sorts the rest, so callers can't get the order
+  wrong. Value object, SRP; no I/O, so it is tested directly.
+
+- **`PlayerRange.of(expansions)` is the only place the player limit is defined.** Before, the
+  2–5 limit was a pair of constants in `GameSetup`, also read by `Main`. Now `GameConfig`, the
+  menu's hint and `GameSetup`'s rule-1 guard (through `DeckFactory.playerRange()`) all ask the
+  same method. It already takes the expansions, so when an expansion allows more players
+  only this method changes. Single source of truth (Booch: cohesion, sufficiency).
+
+- **`GameOption`: name, description and order, as `default` methods.** `Expansion` and
+  `GameVariant` extend it, so the menu shows what an option says about itself (no magic
+  strings, nothing to edit in the menu for a new option). Defaults keep `Expansion` a
+  functional interface, so the existing lambdas in tests still compile (OCP for the
+  interface's users). `GameOption.BY_ORDER` sorts by `order()`, then name, then class name.
+  That order is total, so the result is the same however the options were found.
+
+- **`ExpansionRegistry` finds expansions and variants with `java.util.ServiceLoader`.** A new
+  expansion is a jar with its classes plus `META-INF/services/ek.expansion.Expansion`; put
+  it on the classpath and it appears in the menu with no edit to any existing class. That
+  covers the menu too, which is the point of requirement 15 for extensibility.
+  - *Service Locator, kept at the edge.* ServiceLoader is a Service Locator, which hides
+    dependencies if used deep in the code. Here only `ExpansionRegistry` calls it, and only
+    `Main` (the composition root) calls the registry. Everything below `Main` gets plain
+    `List<Expansion>`/`List<GameVariant>` through constructors (`GameConfig` →
+    `GameAssembler` → `DeckFactory`, `GameSetup`), which is ordinary dependency injection. So
+    the locator does the *discovery* and DI does the *wiring*. Tests never need the registry
+    to build a game, only lists.
+  - *Explicit order.* `DeckFactory.afterDeal` chains the expansions (a later one adjusts an
+    earlier one's kitten count), so the order changes the game. ServiceLoader's iteration
+    order depends on the classpath, so it is never used. `BaseGame` is not looked up, and is
+    always first. The rest are sorted by `order()` in the registry and again in
+    `GameConfig.of`.
+  - *Errors.* Each `hasNext()`/`next()` is wrapped. A `ServiceConfigurationError` (class
+    missing, wrong type, constructor throws) becomes one line in `problems()` naming the
+    provider and the cause, and the loop goes on (the JDK iterator moves past the broken
+    entry). The menu shows the problems under the expansion list, so nothing fails
+    silently and one bad jar doesn't stop the game. A cap on failures in a row guards
+    against a classpath that keeps failing. The registry does no I/O itself.
+
+- **`ConsoleMenu` (`ek.ui`) is I/O only.** It gets a `BufferedReader` and `ConsoleOutput`
+  injected (like `ConsoleController`), asks for expansions, then variants, then humans and
+  bots, and asks again on bad input. It checks only the *form* of the input (numbers in the
+  list, each once; whole numbers ≥ 0). Whether the counts make a valid game is
+  `GameConfig`'s decision: the menu catches its exception, prints the message and asks
+  again. So there is no second copy of the limit (SRP, DRY). Tested with a `StringReader`.
+
+- **`GameAssembler` (`ek.app`) moves the wiring that was inline in `Main.runServer`:**
+  expansions → card effects, draw effects, `DeckFactory`, nameable cards, `GameSetup` with the
+  variants, and the `GameEngine`. It takes a `GameConfig` and a `Randomizer` and does no I/O,
+  so the assembly is tested without sockets or `System.in` (SRP, testability, req 19).
+  `Main` stays the composition root: it creates the console, the controllers and the
+  sockets, and runs what the assembler built.
+
+- **`CommandLine` (`ek.app`) parses the arguments into a sealed result** (`OpenMenu`,
+  `HostBaseGame`, `Join`, `Invalid`), so parsing is tested without `System.exit`.
+  `server <humans> <bots>` is deliberately **base game only**: it never looks at the
+  registry and takes no expansion or variant arguments. The shortcut is then a fixed,
+  reproducible game (handy for testing and the examiner), and choosing options has one
+  interface, the menu, instead of a second syntax to keep in step with the menu.
+
+- **Variants: `GameVariant.afterDeal(deck, randomizer)`, one hook in `GameSetup`** (Strategy).
+  It runs between dealing (rule 5) and adding the kittens (rule 6). `FasterGame` (the
+  official "Faster game") shuffles and removes a third of the deck there. Rule 6 still runs
+  afterwards, so the kitten count is unchanged. Adding the hook was a one-time edit to
+  `GameSetup`; a new variant is now a new class plus a line in
+  `META-INF/services/ek.expansion.GameVariant`. *Trade-off:* the hook only allows changing
+  the deck between dealing and the kittens. That covers the deck-size variants, but not
+  variants that change turn rules, which would need an engine hook. That hook is left out
+  until one is needed (no speculative framework). Variants as `Expansion`s were rejected:
+  `cardsAfterDeal` only edits counts and has no randomizer.

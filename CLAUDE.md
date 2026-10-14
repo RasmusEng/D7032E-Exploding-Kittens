@@ -61,8 +61,12 @@ java -jar lib/junit-platform-console-standalone.jar execute \
 #   --select-method 'ek.rules.RulesComplianceTest#rule03a_twoPlayers_deckHasTwoDefuse'
 
 # Run (numPlayers = human players incl. the host, the rest join as clients; 2–5 players in total)
-java -cp out/classes ek.app.Main server <numPlayers> <numBots>
+java -cp out/classes ek.app.Main server                          # setup menu: expansions, variants, players
+java -cp out/classes ek.app.Main server <numPlayers> <numBots>   # base game only, no menu
 java -cp out/classes ek.app.Main client <ip>      # joins a server on TCP port 2048
+java -cp "out/classes:expansions/*" ek.app.Main server           # menu with expansion jars from expansions/
+
+# Scripts: ./test = clean build + all tests; ./run [<numPlayers> <numBots> | client <ip>]
 ```
 
 "Run the full test suite" (rule 6 in §2) means all three steps: build, compile tests, run tests.
@@ -75,16 +79,18 @@ run and test from written instructions alone.
 
 ```
 ek/
-├── app/          app.Main, composition root (wires everything together, the only place with `new` for services)
+├── app/          Main (composition root, the only place with `new` for services and the only ExpansionRegistry user),
+│                 CommandLine (argument parsing), GameAssembler (GameConfig → deck, effects, engine)
 ├── model/        Card, CardType, Deck, Hand, Player, DiscardPile          — pure data + invariants
-├── rules/        GameSetup, TurnState                                      — rule logic, no I/O
+├── rules/        GameSetup, TurnState, GameConfig                          — rule logic, no I/O
 ├── cards/        one CardEffect implementation per card                    — Attack, Skip, Favor, ...
 ├── combos/       ComboEffect: TwoOfAKind, ThreeOfAKind
-├── expansion/    Expansion (interface), BaseGame, ExpansionRegistry        — card sets + deck setup
+├── expansion/    GameOption, Expansion, GameVariant (interfaces), BaseGame, FasterGame, DeckFactory,
+│                 PlayerRange, ExpansionRegistry (ServiceLoader)            — card sets, variants + deck setup
 ├── engine/       GameEngine, GameState, GameContext, CardEffect (interface), PlayResolver, NopeResolver, GameEvent — orchestrates a game
 ├── player/       PlayerController (interface), BotController, GameView, TurnAction (ConsoleController in ui/, RemoteController in net/)
 ├── net/          Message (typed protocol), MessageChannel, ObjectStreamChannel, RemoteController, GameClient, GameServer — transport only
-├── ui/           ConsoleView, Menu                                         — rendering & input parsing
+├── ui/           ConsoleView, ConsoleController, ConsoleMenu, Dashboard    — rendering & input parsing
 └── util/         Randomizer, Clock/Timer abstractions (injectable)
 ```
 
@@ -95,6 +101,9 @@ ek/
 | `CardEffect` | `apply(GameContext ctx, Player actor)` for one card type or combo; interface in `engine/`, implementations in `cards/`/`combos/` | OCP: new cards = new classes, engine unchanged; DIP: no engine↔cards cycle |
 | `Expansion` | Provides card types, counts, effects, setup tweaks | OCP/extensibility: req 14 without touching core |
 | `DeckFactory` | Builds deck per rules 3–7 from active expansions | SRP, testable setup |
+| `GameConfig` | Validated host choices (humans, bots, expansions, variants); player limit from `PlayerRange.of(expansions)` only | One validation for menu and command line |
+| `ExpansionRegistry` | Finds optional expansions and variants via `ServiceLoader`, sorted by `order()`, broken providers reported | Req 14/15 without code changes; Service Locator confined to `Main` |
+| `GameVariant` | `afterDeal(deck, randomizer)`, the single variant hook in `GameSetup` | Strategy, OCP |
 | `PlayerController` | `chooseAction(view)`, `chooseCardToGive(...)`, `wantsToNope(...)` | DIP + LSP: human, remote, bot interchangeable (req 16) |
 | `NopeResolver` (`engine/`) | Runs the timed Nope window, handles Nope/Yup chains | Isolates concurrency (req 20) |
 | `GameEventListener` | Engine publishes events (`CardPlayed`, `PlayerExploded`, `Winner`) | Observer: views/network decoupled from rules |
@@ -242,4 +251,12 @@ captures the spec first, then fix the code until it passes.
 - [x] Build tool: plain `javac` + JUnit 5 console launcher, Java 21 (see §3)
 - [x] Server-hosted local player kept: the host plays at its console, the other humans join as clients (`ek.net`)
 - [ ] Which expansion (if any) to implement as proof of extensibility
+- [x] Req 15 menu: `server` opens `ui.ConsoleMenu` (expansions → variants → humans/bots); `server <p> <b>`
+      is a base-game-only shortcut that never uses the registry. Both produce a `rules.GameConfig`
+- [x] Expansion discovery: `ServiceLoader` inside `expansion.ExpansionRegistry` only, called only by `Main`;
+      `BaseGame` is never looked up and always first, the rest are sorted by `GameOption.order()`;
+      broken providers are skipped and shown in the menu. Registrations live in `src/*/resources/META-INF/services`
+- [x] Player limit: defined once in `expansion.PlayerRange.of(expansions)` (2–5 today)
+- [x] Variants: `GameVariant.afterDeal` is the only hook (after dealing, before the kittens); `FasterGame` implemented
+- [x] Assembly: `app.GameAssembler` builds deck/effects/engine from a `GameConfig`; `Main` only does I/O wiring
 - [x] Bot strategy scope: random legal moves (`player/BotController`, injected `Randomizer`)

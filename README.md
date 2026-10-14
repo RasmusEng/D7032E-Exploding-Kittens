@@ -40,25 +40,39 @@ Tests named `ruleNN...` cover the matching rule of the exam specification.
 
 ## Run
 
-Host a game (you play at this console):
+Host a game and set it up in a menu (you play at this console):
+
+```bash
+java -cp out/classes ek.app.Main server
+```
+
+The menu asks, in this order, for:
+
+1. the expansions to add (the base game is always included),
+2. the game variants, e.g. *Faster game* (a third of the deck is removed before the
+   Exploding Kittens go in),
+3. the number of human players (including you; the others join as clients) and bots.
+
+Choose expansions and variants by number, separated by spaces, or press Enter for none.
+There must be 2–5 players in total; anything else is explained and asked again.
+
+Shortcut for the **base game only** (no menu; installed expansions and variants are not
+used, and can only be chosen in the menu):
 
 ```bash
 java -cp out/classes ek.app.Main server <numPlayers> <numBots>
+java -cp out/classes ek.app.Main server 1 1       # you against one bot
 ```
 
-- `numPlayers`: human players, including you. The others join as clients.
-- `numBots`: computer players.
-- There must be 2–5 players in total. Example, you against one bot:
-
-```bash
-java -cp out/classes ek.app.Main server 1 1
-```
+The `run` script builds first and then starts the same way: `./run` (menu),
+`./run <numPlayers> <numBots>` (shortcut) or `./run client <ip>`. `./test` does a clean
+build and runs all tests.
 
 Network game, e.g. you plus two remote players and one bot. The server waits on TCP port 2048
 until both clients have joined:
 
 ```bash
-java -cp out/classes ek.app.Main server 3 1       # on the host
+java -cp out/classes ek.app.Main server 3 1       # on the host (or use the menu)
 java -cp out/classes ek.app.Main client <host-ip>  # on each other player's machine
 ```
 
@@ -78,3 +92,33 @@ don't want to, type `n` and Enter so the game goes on at once (otherwise the off
 The screen shows a dashboard (the deck size, the other players' hand sizes, the latest events
 and your hand) that is redrawn in place whenever something happens, so the terminal never scrolls.
 To turn colours and redrawing off and get a plain scrolling log, set `NO_COLOR=1` (e.g. `NO_COLOR=1 java -cp out/classes ek.app.Main server 1 1`).
+
+## Expansions and variants
+
+Expansions and variants are found when the game starts with Java's `ServiceLoader`, so a
+new one needs no change to this code. An expansion is a class implementing
+`ek.expansion.Expansion` (a variant: `ek.expansion.GameVariant`) with a public no-argument
+constructor, registered by its full class name in
+`META-INF/services/ek.expansion.Expansion` (or `...GameVariant`). The base game is always
+included and is not registered. Expansions are applied in the order of their `order()`
+value, never in the order they are found.
+
+A separately compiled expansion jar is picked up by putting it on the classpath:
+
+```bash
+# compile the expansion against the game, add its registration, and package it
+javac --release 21 -cp out/classes -d my-expansion/classes $(find my-expansion/src -name '*.java')
+mkdir -p my-expansion/classes/META-INF/services
+echo com.example.MyExpansion > my-expansion/classes/META-INF/services/ek.expansion.Expansion
+mkdir -p expansions
+jar --create --file expansions/my-expansion.jar -C my-expansion/classes .
+
+# start the menu with every jar in expansions/ on the classpath
+java -cp "out/classes:expansions/*" ek.app.Main server
+```
+
+The menu then lists it by the `name()` and `description()` it gives itself. Clients don't
+need the jar for the menu, but they must have it on their classpath for its card types to
+reach them over the network. A provider that can't be loaded is skipped, and the menu shows
+which one and why.
+
