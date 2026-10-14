@@ -144,25 +144,42 @@ One short entry per decision: what, and why.
 
 - **First claim wins, late claims are refused.** `Window.claim` returns `false` once
   someone was first or the window has closed. A `CountDownLatch` wakes the engine as soon
-  as someone claims, so it never waits the full 5 s when a Nope is played.
+  as someone claims; a Nope is the only thing that ends a window early.
 
-- **Declining closes the window early.** `NopeOffer.decline()` says "no Nope from me"; when
-  every player offered the window has declined, the same latch wakes the engine and the play
-  goes ahead at once. Bots decline as soon as they decide not to Nope, and a human answers
-  `n`. So the game only waits while somebody is still deciding; 5 s (rule 12) is the most
-  a window can last, not how long every play takes. A player who declined can't then
-  claim the same window. Over the network the client sends `DeclineNope(id)`.
+- **Every window runs its full length and can't be skipped.** After every Nope-able play a
+  window opens, *even if nobody holds a Nope*, and lasts exactly 5 s unless someone Nopes.
+  There is no way to decline. Reasons:
+  - *Rule 12, literally:* "a Nope can be played within 5 seconds" gives everyone the whole
+    5 s, not "until everyone has said no".
+  - *Timing never leaks hands.* Before, a window opened only if someone else held a Nope and
+    closed once all had declined. So how long the game paused told you who held one;
+    with 2 players, any pause meant "they have a Nope". Now every window lasts exactly the same
+    unless a Nope is played, and players without a Nope see the same countdown.
+  - *Trade-off:* every Nope-able play now costs 5 s, so games are slower. Accepted
+    deliberately: correctness and hidden information over speed.
 
-- **Window length is injected (`Duration`)**, default `DEFAULT_WINDOW` = 5 s (rule 12).
-  Unit tests use 0 s, so there is no real waiting. One test uses real threads and a 1-hour window
-  to prove a Nope from another thread closes the window immediately (no sleeps).
+- **Who may Nope is decided on the engine thread when the window opens:**
+  `NopeOffer.canNope()` is "holds a Nope" at that moment, and `playNope()` is refused without
+  it. The hands can't change while the engine waits, so the decision stays true. Every alive
+  player except the one who played last gets an offer (`offerNope`); the last player gets
+  `watchNopeWindow` (a read-only `NopeWindow`, default no-op) so they can see the countdown on
+  their own play. `NopeOffer extends NopeWindow` (ISP: watchers can't claim).
 
-- **Nope chains:** each Nope opens a new window. The player who played last is not
-  offered a Nope (you don't Nope yourself), so the original player can Yup a Nope on
-  their card. The play is cancelled when the number of Nopes is odd (rule 12a).
-  Noped cards stay on the discard pile.
+- **Window length and waiting are injected:** `Duration` (default `DEFAULT_WINDOW` = 5 s) and
+  a `Waiter` (`ek.util`, real one: `CountDownLatch.await(timeout)`). Tests pass a waiter that
+  records how long the engine asked to wait and checks every offer is still open at that
+  moment, then lets the time run out at once. That proves "not closed early" without
+  waiting 5 s. One test uses real threads and a 1-hour first window to prove a Nope from
+  another thread wakes the engine immediately.
 
-- **No window if nobody holds a Nope**, so the game doesn't stall for 5 s after every play.
+- **Nope chains: a Nope resets the window.** Each Nope opens a new *full* window for everyone
+  except the player who just Noped, so the original player (or anyone) can Yup, and the chain
+  goes on until a window runs out. The play is cancelled when the number of Nopes is odd
+  (rule 12a). Noped cards stay on the discard pile.
+
+- **Bots never shorten a window.** A bot that wants to Nope (half the time, as before) does
+  it at a random moment from 1 s after the window opens to 0.5 s before it ends; otherwise it
+  just returns. Returning changes nothing, because the window runs its length anyway.
 
 - **Interrupts:** if the engine thread is interrupted while waiting, the window is closed
   as if time ran out and the interrupt flag is restored — not swallowed (CLAUDE.md §7).
@@ -281,12 +298,22 @@ One short entry per decision: what, and why.
   lines and can clear the screen and rewrite a line. `Main` makes the choice once. Rows are
   padded *before* they are painted, so escape codes never upset the box's width.
 
-- **The Nope prompt is a question, not a countdown.** "Nope Bob's Attack? Enter = Nope,
-  n = no": Enter plays the Nope, `n` declines so the game goes on at once. A live countdown
-  was dropped: it made every play feel like a 5 s stop. `isOpen()` and the server still
-  decide when the window has closed, so an unanswered prompt is removed with "(time's up)".
-  `OfferNope.windowMillis` still carries the window's length (a plain `long`, so the
-  deserialization filter doesn't need `java.time`).
+- **Every human sees the Nope window as a countdown.** With a Nope: "Nope Bob's Attack?
+  Enter = Nope… 4". Without one: "Nope window for Bob's Attack… 4", where Enter only prints a
+  private "You have no Nope." On your own play: "Waiting for Nopes on your Attack… 4". All
+  three look and last the same, so the screen gives nothing away. The countdown is only for
+  display: `isOpen()` (the engine, or the server's `NopeClosed` for a remote player) decides
+  when it ends, so clock differences between machines don't matter. A remote client counts
+  down from `OfferNope.windowMillis` (a plain `long`, so the deserialization filter needs no
+  `java.time`); the window on a client's own play arrives as `WatchNopeWindow`.
+
+- **Only the countdown line is redrawn.** Once a second `ConsoleOutput.updatePrompt` writes
+  save-cursor, carriage return, the new text, restore-cursor (`Style.rewriteLine`), instead of
+  redrawing the whole frame. So anything the player has started typing isn't wiped every
+  second. The text keeps the same width, and later full redraws show the current second.
+  Plain consoles can't rewrite a line, so they print the prompt once with the window's length
+  ("(5 s)") and no ticks. The ticks go through the injected `Sleeper`, so tests run the
+  whole countdown instantly.
 
 ## Extension points for expansions: rule 6 and drawing (`ek.expansion`, `ek.engine`)
 
