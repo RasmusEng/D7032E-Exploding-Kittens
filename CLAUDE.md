@@ -33,7 +33,8 @@ terminal and over a network. The goal is a **clean, well-structured implementati
 ## 3. Tech stack & commands
 
 - **Java 21** (LTS). No build tool: plain `javac` + JUnit 5 console launcher.
-- Layout: production code in `src/main/ek/...`, tests in `src/test/java/ek/...`,
+- Layout: production code in `src/main/java/ek/...`, tests in `src/test/java/ek/...`,
+  ServiceLoader registrations in `src/main/resources` and `src/test/resources`,
   JUnit jar at `lib/junit-platform-console-standalone.jar` (committed). Output goes to `out/` (gitignored).
 - The local JDK is newer than 21, so **always compile with `--release 21`**. That rejects
   newer APIs and syntax such as `void main()` and `IO.println`. Use a classic
@@ -42,12 +43,14 @@ terminal and over a network. The goal is a **clean, well-structured implementati
 Commands (bash, from the project root):
 
 ```bash
-# Build
+# Build (the cp copies META-INF/services, which registers expansions and variants)
 javac --release 21 -d out/classes $(find src/main -name '*.java')
+cp -R src/main/resources/. out/classes/
 
 # Compile tests (after Build)
 javac --release 21 -d out/test-classes -cp out/classes:lib/junit-platform-console-standalone.jar \
   $(find src/test/java -name '*.java')
+cp -R src/test/resources/. out/test-classes/
 
 # Run all tests
 java -jar lib/junit-platform-console-standalone.jar execute \

@@ -12,6 +12,7 @@ fi
 
 rm -rf out/classes
 javac --release 21 -d out/classes $(find src/main -name '*.java')
+cp -R src/main/resources/. out/classes/
 
 if [ "$1" = "client" ]; then
     exec java -cp out/classes ek.app.Main client "$2"

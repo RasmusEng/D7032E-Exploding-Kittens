@@ -15,7 +15,11 @@ From the project root:
 ```bash
 rm -rf out
 javac --release 21 -d out/classes $(find src/main -name '*.java')
+cp -R src/main/resources/. out/classes/
 ```
+
+The `cp` line copies `META-INF/services`, which registers the game variants (see
+[Expansions and variants](#expansions-and-variants)); without it the menu offers none.
 
 ## Test
 
@@ -24,6 +28,7 @@ Build first, then:
 ```bash
 javac --release 21 -d out/test-classes -cp out/classes:lib/junit-platform-console-standalone.jar \
   $(find src/test/java -name '*.java')
+cp -R src/test/resources/. out/test-classes/
 java -jar lib/junit-platform-console-standalone.jar execute \
   --class-path out/classes:out/test-classes --scan-class-path
 ```
