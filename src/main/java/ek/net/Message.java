@@ -115,7 +115,23 @@ public sealed interface Message extends Serializable {
         }
     }
 
-    /** The offer's window has closed; the client stops asking. */
+    /**
+     * A Nope window opened on this client's own play (or Nope), shown as a countdown while the
+     * others decide. It shares the offer ids, so {@link NopeClosed} ends it like an offer.
+     */
+    record WatchNopeWindow(int offerId, GameView view, String playedBy, List<CardType> cards, int nopesSoFar,
+                           long windowMillis) implements ToClient {
+        public WatchNopeWindow {
+            Objects.requireNonNull(view, "view");
+            Objects.requireNonNull(playedBy, "playedBy");
+            if (windowMillis < 0) {
+                throw new IllegalArgumentException("windowMillis < 0");
+            }
+            cards = List.copyOf(cards);
+        }
+    }
+
+    /** The offer's (or watched window's) window has closed; the client stops its countdown. */
     record NopeClosed(int offerId) implements ToClient {
     }
 

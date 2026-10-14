@@ -42,6 +42,7 @@ class ObjectStreamChannelTest {
                 new Message.GameStarted(VIEW),
                 new Message.SeeTheFuture(List.of(new Card(EXPLODING_KITTEN), new Card(SKIP))),
                 new Message.OfferNope(7, VIEW, "Bob", List.of(ATTACK), 1, 5000, true),
+                new Message.WatchNopeWindow(8, VIEW, "Ann", List.of(ATTACK), 0, 5000),
                 new Message.NopeClosed(7),
                 new Message.NopeResult(7, true),
                 new Message.ActionChosen(new TurnAction.Pass()),

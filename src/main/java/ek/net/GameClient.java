@@ -98,7 +98,16 @@ public final class GameClient {
             case Message.SeeTheFuture s -> controller.seeTheFuture(s.topCards());
             case Message.GameStarted g -> controller.gameStarted(g.view());
             case Message.HandChanged h -> controller.handChanged(h.change());
-            case Message.OfferNope o -> startOffer(o);
+            case Message.OfferNope o -> {
+                ClientNopeOffer offer = open(o.offerId(), o.playedBy(), o.cards(), o.nopesSoFar(),
+                        o.windowMillis(), o.canNope());
+                nopeExecutor.execute(() -> controller.offerNope(o.view(), offer));
+            }
+            case Message.WatchNopeWindow w -> {
+                ClientNopeOffer window = open(w.offerId(), w.playedBy(), w.cards(), w.nopesSoFar(),
+                        w.windowMillis(), false);
+                nopeExecutor.execute(() -> controller.watchNopeWindow(w.view(), window));
+            }
             case Message.NopeClosed c -> {
                 ClientNopeOffer offer = offers.remove(c.offerId());   // the server decides when it ends
                 if (offer != null) {
@@ -121,42 +130,58 @@ public final class GameClient {
         throw new StreamCorruptedException("Server sent a client message");
     }
 
-    private void startOffer(Message.OfferNope message) {
-        ClientNopeOffer offer = new ClientNopeOffer(message);
-        offers.put(message.offerId(), offer);
-        nopeExecutor.execute(() -> controller.offerNope(message.view(), offer));
+    /** Registers a window until the server's {@code NopeClosed}; the local controller runs its countdown. */
+    private ClientNopeOffer open(int id, String playedBy, List<CardType> cards, int nopesSoFar,
+                                 long windowMillis, boolean canNope) {
+        ClientNopeOffer offer = new ClientNopeOffer(id, playedBy, cards, nopesSoFar, windowMillis, canNope);
+        offers.put(id, offer);
+        return offer;
     }
 
-    /** The client's side of a server Nope window. Playing Nope asks the server, which decides. */
+    /**
+     * The client's side of a server Nope window, offered or watched. It stays open until the
+     * server says it closed. Playing Nope asks the server, which decides.
+     */
     private final class ClientNopeOffer implements NopeOffer {
 
-        private final Message.OfferNope message;
+        private final int offerId;
+        private final String playedBy;
+        private final List<CardType> cards;
+        private final int nopesSoFar;
+        private final long windowMillis;
+        private final boolean canNope;
         private final CompletableFuture<Boolean> result = new CompletableFuture<>();
         private final AtomicBoolean answered = new AtomicBoolean();
         private volatile boolean open = true;
 
-        ClientNopeOffer(Message.OfferNope message) {
-            this.message = message;
+        ClientNopeOffer(int offerId, String playedBy, List<CardType> cards, int nopesSoFar, long windowMillis,
+                        boolean canNope) {
+            this.offerId = offerId;
+            this.playedBy = playedBy;
+            this.cards = cards;
+            this.nopesSoFar = nopesSoFar;
+            this.windowMillis = windowMillis;
+            this.canNope = canNope;
         }
 
         @Override
         public String playedBy() {
-            return message.playedBy();
+            return playedBy;
         }
 
         @Override
         public List<CardType> cards() {
-            return message.cards();
+            return cards;
         }
 
         @Override
         public int nopesSoFar() {
-            return message.nopesSoFar();
+            return nopesSoFar;
         }
 
         @Override
         public Duration window() {
-            return Duration.ofMillis(message.windowMillis());
+            return Duration.ofMillis(windowMillis);
         }
 
         @Override
@@ -167,7 +192,7 @@ public final class GameClient {
         /** As the server decided; the server also refuses a Nope from a player who can't. */
         @Override
         public boolean canNope() {
-            return message.canNope();
+            return canNope;
         }
 
         /** Asks the server and waits for its answer. Only the first call is sent; none if you can't Nope. */
@@ -177,7 +202,7 @@ public final class GameClient {
                 return false;
             }
             try {
-                channel.send(new Message.PlayNope(message.offerId()));
+                channel.send(new Message.PlayNope(offerId));
             } catch (IOException e) {
                 return false;
             }

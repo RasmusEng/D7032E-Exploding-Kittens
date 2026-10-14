@@ -111,6 +111,28 @@ class GameClientTest {
     }
 
     @Test
+    void watchedWindow_isPassedToTheController_andEndsWhenTheServerClosesIt() throws Exception {
+        server.send(new Message.Welcome("Ann", List.of()));
+
+        server.send(new Message.WatchNopeWindow(4, VIEW, "Ann", List.of(ATTACK), 0, 5000));
+        assertTimeoutPreemptively(Duration.ofSeconds(2), () -> {
+            while (controller.watchedWindows().isEmpty()) {
+                Thread.sleep(1);
+            }
+        });
+        var window = controller.watchedWindows().get(0);
+        assertTrue(window.isOpen());
+        server.send(new Message.NopeClosed(4));
+        endGame();
+
+        assertEquals("Ann", window.playedBy());
+        assertEquals(List.of(ATTACK), window.cards());
+        assertEquals(Duration.ofSeconds(5), window.window());
+        assertFalse(window.isOpen());
+        assertTrue(controller.nopeOffers().isEmpty());
+    }
+
+    @Test
     void offerWithoutANope_isShownButCantBeClaimed_andEndsWhenTheServerClosesIt() throws Exception {
         server.send(new Message.Welcome("Ann", List.of()));
         controller.nopes(true);

@@ -10,6 +10,7 @@ import ek.player.GameView;
 import ek.player.GameView.OpponentView;
 import ek.player.HandChange;
 import ek.player.NopeOffer;
+import ek.player.NopeWindow;
 import ek.player.PlayerController;
 import ek.player.TurnAction;
 
@@ -24,6 +25,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntFunction;
 
 /**
  * Server-side stand-in for a player on another machine (Proxy). Each controller call and
@@ -45,9 +47,13 @@ public final class RemoteController implements PlayerController, GameEventListen
     private final String name;
     private final MessageChannel channel;
     private final BlockingQueue<Optional<ToServer>> answers = new LinkedBlockingQueue<>();   // empty = disconnected
-    private final Map<Integer, NopeOffer> openOffers = new ConcurrentHashMap<>();
+    private final Map<Integer, Shown> openOffers = new ConcurrentHashMap<>();
     private final AtomicInteger nextOfferId = new AtomicInteger();
     private final Object sendLock = new Object();
+
+    /** A window shown to the client; {@code offer} is null for a watched one, which can't be claimed. */
+    private record Shown(NopeWindow window, NopeOffer offer) {
+    }
 
     /** @param name the player's name, used in error messages */
     public RemoteController(String name, MessageChannel channel) {
@@ -131,17 +137,30 @@ public final class RemoteController implements PlayerController, GameEventListen
      */
     @Override
     public void offerNope(GameView view, NopeOffer offer) {
+        show(new Shown(offer, offer), id -> new Message.OfferNope(id, view, offer.playedBy(), offer.cards(),
+                offer.nopesSoFar(), offer.window().toMillis(), offer.canNope()));
+    }
+
+    /** Like {@link #offerNope}, for the window on the client's own play: it can't be claimed. */
+    @Override
+    public void watchNopeWindow(GameView view, NopeWindow window) {
+        show(new Shown(window, null), id -> new Message.WatchNopeWindow(id, view, window.playedBy(), window.cards(),
+                window.nopesSoFar(), window.window().toMillis()));
+    }
+
+    /** Sends the window under a new id and blocks until it closes, then sends {@code NopeClosed}. */
+    private void show(Shown shown, IntFunction<ToClient> message) {
+        NopeWindow window = shown.window();
         int id = nextOfferId.incrementAndGet();
         try {
             synchronized (sendLock) {
-                if (!offer.isOpen()) {
+                if (!window.isOpen()) {
                     return;            // too late: the game has moved on
                 }
-                openOffers.put(id, offer);
-                channel.send(new Message.OfferNope(id, view, offer.playedBy(), offer.cards(),
-                        offer.nopesSoFar(), offer.window().toMillis(), offer.canNope()));
+                openOffers.put(id, shown);
+                channel.send(message.apply(id));
             }
-            while (offer.isOpen() && openOffers.containsKey(id) && pause()) {
+            while (window.isOpen() && openOffers.containsKey(id) && pause()) {
                 // wait for the window to close
             }
             synchronized (sendLock) {
@@ -186,8 +205,8 @@ public final class RemoteController implements PlayerController, GameEventListen
     private void send(ToClient message) {
         try {
             synchronized (sendLock) {
-                for (Map.Entry<Integer, NopeOffer> offer : openOffers.entrySet()) {
-                    if (!offer.getValue().isOpen()) {
+                for (Map.Entry<Integer, Shown> offer : openOffers.entrySet()) {
+                    if (!offer.getValue().window().isOpen()) {
                         closeOffer(offer.getKey());
                     }
                 }
@@ -207,13 +226,13 @@ public final class RemoteController implements PlayerController, GameEventListen
 
     /**
      * Runs on the reader thread: claims the Nope window and tells the client if it was in time.
-     * Holding {@code sendLock} while claiming makes the result reach the client before the
-     * engine's next message about it.
+     * A watched window (the client's own play) can't be claimed. Holding {@code sendLock}
+     * while claiming makes the result reach the client before the engine's next message about it.
      */
     private void answerNope(int id) throws IOException {
         synchronized (sendLock) {
-            NopeOffer offer = openOffers.get(id);
-            boolean accepted = offer != null && offer.playNope();
+            Shown shown = openOffers.get(id);
+            boolean accepted = shown != null && shown.offer() != null && shown.offer().playNope();
             channel.send(new Message.NopeResult(id, accepted));
         }
     }

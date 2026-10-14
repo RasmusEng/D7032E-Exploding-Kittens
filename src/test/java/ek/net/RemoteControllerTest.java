@@ -122,6 +122,34 @@ class RemoteControllerTest {
     }
 
     @Test
+    void watchedWindow_isSent_andClosedWhenItEnds() throws Exception {
+        FakeOffer window = new FakeOffer();
+        Thread watching = Thread.ofVirtual().start(() -> remote.watchNopeWindow(VIEW, window));
+
+        Message.WatchNopeWindow sent = (Message.WatchNopeWindow) client.receive();
+        assertEquals(new Message.WatchNopeWindow(sent.offerId(), VIEW, "Bob", List.of(ATTACK), 0, 5000), sent);
+
+        window.closeWindow();
+        assertEquals(new Message.NopeClosed(sent.offerId()), client.receive());
+        watching.join();
+    }
+
+    @Test
+    void nopeOnAWatchedWindow_isRefused() throws Exception {
+        FakeOffer window = new FakeOffer();
+        Thread watching = Thread.ofVirtual().start(() -> remote.watchNopeWindow(VIEW, window));
+        int id = ((Message.WatchNopeWindow) client.receive()).offerId();
+
+        client.send(new Message.PlayNope(id));
+        assertEquals(new Message.NopeResult(id, false), client.receive());
+
+        window.closeWindow();
+        assertEquals(new Message.NopeClosed(id), client.receive());
+        watching.join();
+        assertEquals(0, window.claims);
+    }
+
+    @Test
     void lateNope_isRefused() throws Exception {
         FakeOffer offer = new FakeOffer();
         Thread window = Thread.ofVirtual().start(() -> remote.offerNope(VIEW, offer));
