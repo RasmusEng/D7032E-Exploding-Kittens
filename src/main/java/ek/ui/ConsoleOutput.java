@@ -135,7 +135,7 @@ public final class ConsoleOutput {
     /**
      * Prints {@code text} and leaves the cursor after it for the answer.
      *
-     * @return an id for {@link #answered} and {@link #closePrompt}
+     * @return an id for {@link #answered}, {@link #updatePrompt} and {@link #closePrompt}
      */
     public synchronized long prompt(String text) {
         if (redraws()) {
@@ -148,6 +148,21 @@ public final class ConsoleOutput {
         }
         openPrompt = ++promptCount;
         return openPrompt;
+    }
+
+    /**
+     * Changes the text of a prompt that is still open, e.g. its countdown. In redraw mode only
+     * the prompt's line is rewritten, not the frame, so what the player is typing after it
+     * stays; later redraws show the new text. Plain mode prints nothing: the prompt was
+     * printed once, and rewriting it could overwrite a line printed after it.
+     * The new text should be as long as the old one, which it overwrites.
+     */
+    public synchronized void updatePrompt(long prompt, String text) {
+        if (openPrompt == prompt && redraws()) {
+            promptText = text;
+            out.print(style.rewriteLine(text));
+            out.flush();
+        }
     }
 
     /** The user answered the prompt with {@code answer}; the terminal has already moved to a new line. */

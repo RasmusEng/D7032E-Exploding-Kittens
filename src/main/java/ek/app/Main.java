@@ -76,7 +76,7 @@ public final class Main {
         Map<Player, PlayerController> controllers = new LinkedHashMap<>();
         List<GameEventListener> listeners = new ArrayList<>();
         Player host = new Player("Player 1");
-        controllers.put(host, new ConsoleController(in, console, nameable));
+        controllers.put(host, new ConsoleController(in, console, nameable, Sleeper.REAL));
         List<RemoteController> remotes;
         try {
             remotes = acceptClients(config.humans() - 1, nameable);
@@ -129,7 +129,7 @@ public final class Main {
             BufferedReader in = consoleIn();
             ConsoleOutput console = consoleOut();
             String name = new GameClient(new ObjectStreamChannel(socket),
-                    (me, nameable) -> new GameClient.Seat(new ConsoleController(in, console, nameable),
+                    (me, nameable) -> new GameClient.Seat(new ConsoleController(in, console, nameable, Sleeper.REAL),
                             new ConsoleView(console, me, Sleeper.NONE)),
                     VIRTUAL_THREADS).run();
             System.out.println("Game over, " + name + ".");

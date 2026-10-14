@@ -54,6 +54,47 @@ class ConsoleOutputTest {
     }
 
     @Test
+    void updatePrompt_ansi_rewritesOnlyThePromptLine() {
+        ConsoleOutput ansi = new ConsoleOutput(new PrintStream(output, true), Style.ANSI);
+        long prompt = ansi.prompt("Nope? 5");
+        output.reset();
+
+        ansi.updatePrompt(prompt, "Nope? 4");
+        // save cursor, start of line, new text, restore cursor: what was typed after it stays
+        assertEquals("\0337\rNope? 4\0338", output.toString());
+    }
+
+    @Test
+    void updatePrompt_ansi_laterRedrawShowsTheNewText() {
+        ConsoleOutput ansi = new ConsoleOutput(new PrintStream(output, true), Style.ANSI);
+        long prompt = ansi.prompt("Nope? 5");
+        ansi.updatePrompt(prompt, "Nope? 4");
+        output.reset();
+
+        ansi.event("Bob drew a card.", Style.Tone.NORMAL);
+        assertTrue(output.toString().contains("Nope? 4"));
+        assertFalse(output.toString().contains("Nope? 5"));
+    }
+
+    @Test
+    void updatePrompt_plain_printsNothing() {
+        long prompt = out.prompt("Nope? (5 s): ");
+        output.reset();
+        out.updatePrompt(prompt, "Nope? 4");
+        assertEquals("", output.toString());
+    }
+
+    @Test
+    void updatePrompt_afterTheAnswer_printsNothing() {
+        ConsoleOutput ansi = new ConsoleOutput(new PrintStream(output, true), Style.ANSI);
+        long prompt = ansi.prompt("Nope? 5");
+        ansi.answered(prompt, "");
+        output.reset();
+        ansi.updatePrompt(prompt, "Nope? 4");
+        assertEquals("", output.toString());
+    }
+
+    @Test
     void history_keepsOnlyTheLastEventLines() {
         for (int i = 1; i <= ConsoleOutput.HISTORY + 2; i++) {
             out.event("line " + i, Style.Tone.NORMAL);
