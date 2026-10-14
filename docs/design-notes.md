@@ -287,3 +287,28 @@ One short entry per decision: what, and why.
   decide when the window has closed, so an unanswered prompt is removed with "(time's up)".
   `OfferNope.windowMillis` still carries the window's length (a plain `long`, so the
   deserialization filter doesn't need `java.time`).
+
+## Extension points for expansions: rule 6 and drawing (`ek.expansion`, `ek.engine`)
+
+- **Rule 6 comes from the expansions (`Expansion.cardsAfterDeal`).** Before, `GameSetup`
+  inserted `players − 1` Exploding Kittens in a hard-coded loop, so an expansion that changes
+  the kittens (Imploding Kittens replaces one, Streaking Kittens adds one) would have had to
+  edit it. Now `BaseGame` returns the count, and `DeckFactory.addAfterDeal` asks the expansions
+  *in order*, each getting the counts so far, so a later expansion can adjust an earlier one's.
+  `GameSetup` keeps one line per rule — Open/Closed, and rule 6 stays unchanged and tested.
+
+- **What a drawn card does is a `DrawEffect` (Strategy), like `CardEffect` for played cards.**
+  The defuse-or-explode logic moved out of `GameEngine` into `cards.ExplodingKittenDraw`;
+  `BaseGame` supplies it through `Expansion.drawEffects()`. Cards without one go into the hand
+  (`DrawEffect.KEEP`). The engine only moves the turn on: `SURVIVED` ends the turn, `EXPLODED`
+  passes play on. A new kind of kitten is then a new class, not an engine change — OCP, and
+  `GameEngine` loses a second responsibility (SRP). `GameContext.explode` and
+  `chooseDeckPosition` are shared so every kitten reuses them.
+
+- **Nameable cards come from the expansions** (`DeckFactory.cardTypes`), not
+  `BaseCardType.values()`, so an expansion's cards can be named for three of a kind.
+
+- **Known limits, left until an expansion needs them** (no speculative abstractions): turn
+  order (`TurnState` is clockwise only), combos (`PlayResolver` only matches identical cards),
+  new player decisions (each is a new `PlayerController` method and `Message` record), and
+  face-up cards (`Card` has no visibility state).

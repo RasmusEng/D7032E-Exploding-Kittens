@@ -41,7 +41,6 @@ class ConsoleControllerTest {
     private static class FakeOffer implements NopeOffer {
         boolean open = true;
         boolean noped;
-        boolean declined;
 
         public String playedBy() { return "Bob"; }
         public List<CardType> cards() { return List.of(ATTACK); }
@@ -52,7 +51,7 @@ class ConsoleControllerTest {
             noped = open;
             return open;
         }
-        public void decline() { declined = true; }
+        public void decline() { }
     }
 
     @Test
@@ -183,18 +182,10 @@ class ConsoleControllerTest {
     }
 
     @Test
-    void offerNope_asksEnterOrNo_withoutACountdown() {
+    void offerNope_asksForEnter_withoutACountdown() {
         controller("\n").offerNope(view(NOPE), new FakeOffer());
-        assertTrue(printed().contains("Nope Bob's Attack? Enter = Nope, n = no"));
+        assertTrue(printed().contains("Nope Bob's Attack? Enter = Nope"));
         assertFalse(printed().contains("■"));
-    }
-
-    @Test
-    void offerNope_n_declines_soTheGameGoesOn() {
-        FakeOffer offer = new FakeOffer();
-        controller("n\n").offerNope(view(NOPE), offer);
-        assertTrue(offer.declined);
-        assertFalse(offer.noped);
     }
 
     @Test
@@ -202,7 +193,7 @@ class ConsoleControllerTest {
         FakeOffer offer = new FakeOffer();
         controller("x\n\n").offerNope(view(NOPE), offer);
         assertTrue(offer.noped);
-        assertTrue(printed().contains("Press Enter to Nope, or n to let it go."));
+        assertTrue(printed().contains("Press Enter to Nope, or let it go."));
     }
 
     @Test

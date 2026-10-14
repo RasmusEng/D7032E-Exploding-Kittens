@@ -1,11 +1,13 @@
 package ek.expansion;
 
 import ek.cards.AttackEffect;
+import ek.cards.ExplodingKittenDraw;
 import ek.cards.FavorEffect;
 import ek.cards.SeeTheFutureEffect;
 import ek.cards.ShuffleEffect;
 import ek.cards.SkipEffect;
 import ek.engine.CardEffect;
+import ek.engine.DrawEffect;
 import ek.model.CardType;
 
 import java.util.LinkedHashMap;
@@ -14,8 +16,8 @@ import java.util.Map;
 import static ek.model.BaseCardType.*;
 
 /**
- * The base game: the deck before dealing (rule 3) and the card effects (rule 11a–e).
- * Exploding Kittens are added later (rule 6).
+ * The base game: the deck before dealing (rule 3), the Exploding Kittens added after
+ * dealing (rule 6), and the card effects (rules 10, 11a–e).
  */
 public final class BaseGame implements Expansion {
 
@@ -45,5 +47,18 @@ public final class BaseGame implements Expansion {
                 SHUFFLE, new ShuffleEffect(),
                 SKIP, new SkipEffect(),
                 SEE_THE_FUTURE, new SeeTheFutureEffect());
+    }
+
+    /** Rule 6: one fewer Exploding Kitten than players. */
+    @Override
+    public Map<CardType, Integer> cardsAfterDeal(Map<CardType, Integer> soFar, int playerCount) {
+        Map<CardType, Integer> cards = new LinkedHashMap<>(soFar);
+        cards.put(EXPLODING_KITTEN, playerCount - 1);
+        return cards;
+    }
+
+    @Override
+    public Map<CardType, DrawEffect> drawEffects() {
+        return Map.of(EXPLODING_KITTEN, new ExplodingKittenDraw());
     }
 }

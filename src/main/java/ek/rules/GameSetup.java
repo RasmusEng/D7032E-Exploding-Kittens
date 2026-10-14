@@ -9,7 +9,6 @@ import ek.util.Randomizer;
 import java.util.List;
 
 import static ek.model.BaseCardType.DEFUSE;
-import static ek.model.BaseCardType.EXPLODING_KITTEN;
 
 /** Prepares hands and deck before the first turn (rules 1–7). */
 public final class GameSetup {
@@ -28,7 +27,7 @@ public final class GameSetup {
 
     /**
      * Gives every player a Defuse and 7 dealt cards, and returns the shuffled draw deck
-     * with the Exploding Kittens in it.
+     * with the kittens in it (which kittens, and how many, the expansions decide).
      *
      * @throws IllegalArgumentException if there are not 2–5 players
      */
@@ -42,9 +41,7 @@ public final class GameSetup {
         Deck deck = deckFactory.build(playerCount);                 // R3
         deck.shuffle(randomizer);                                   // R4
         deal(players, deck);                                        // R5
-        for (int i = 0; i < playerCount - 1; i++) {                 // R6
-            deck.addToBottom(new Card(EXPLODING_KITTEN));
-        }
+        deckFactory.addAfterDeal(deck, playerCount);                // R6
         deck.shuffle(randomizer);                                   // R7
         return deck;
     }

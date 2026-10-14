@@ -32,7 +32,7 @@ import java.util.stream.IntStream;
 import static ek.model.BaseCardType.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-class BotControllerTest {
+class zBotControllerTest {
 
     private static final List<CardType> NAMEABLE = List.of(BaseCardType.values());
 
@@ -96,7 +96,8 @@ class BotControllerTest {
             RecordingListener listener = new RecordingListener();
 
             Player winner = new GameEngine(new GameState(players, deck, new DiscardPile()), controllers,
-                    GameStateBuilder.basePlayResolver(), GameStateBuilder.instantNopeResolver(),
+                    GameStateBuilder.basePlayResolver(), GameStateBuilder.baseDrawEffects(),
+                    GameStateBuilder.instantNopeResolver(),
                     randomizer, List.of(listener)).run();
 
             assertEquals(List.of(winner), players.stream().filter(Player::isAlive).toList());

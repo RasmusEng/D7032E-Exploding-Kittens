@@ -118,8 +118,8 @@ public final class ConsoleController implements PlayerController {
     }
 
     /**
-     * Asks whether to Nope: Enter plays it, {@code n} lets the play go ahead (so the game goes
-     * on at once). Unanswered, the offer closes when the window's time is up.
+     * Asks whether to Nope: Enter plays it, any other input asks again. Unanswered, the offer
+     * closes when the window's time is up and the play goes ahead.
      */
     @Override
     public void offerNope(GameView view, NopeOffer offer) {

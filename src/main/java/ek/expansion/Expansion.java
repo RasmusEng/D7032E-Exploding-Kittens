@@ -1,13 +1,15 @@
 package ek.expansion;
 
 import ek.engine.CardEffect;
+import ek.engine.DrawEffect;
 import ek.model.CardType;
 
 import java.util.Map;
 
 /**
- * A set of cards that can be put into the deck. The base game is one expansion;
- * Imploding Kittens etc. would be others, added without changing existing classes.
+ * A set of cards that can be put into the deck, with what they do when played or drawn.
+ * The base game is one expansion; Imploding Kittens etc. would be others, added without
+ * changing existing classes.
  */
 @FunctionalInterface
 public interface Expansion {
@@ -22,6 +24,24 @@ public interface Expansion {
 
     /** Effects of the card types this expansion adds that can be played on their own. */
     default Map<CardType, CardEffect> cardEffects() {
+        return Map.of();
+    }
+
+    /**
+     * Cards put into the deck after the hands are dealt (rule 6), e.g. the kittens.
+     * Expansions are asked in order, each getting the counts so far, so an expansion can
+     * also change another's counts (Imploding Kittens replaces one Exploding Kitten).
+     *
+     * @param soFar       card type to copies, from the expansions before this one
+     * @param playerCount number of players in the game
+     * @return the new counts; the default leaves {@code soFar} unchanged
+     */
+    default Map<CardType, Integer> cardsAfterDeal(Map<CardType, Integer> soFar, int playerCount) {
+        return soFar;
+    }
+
+    /** What drawing each of this expansion's special cards does; other cards go into the hand. */
+    default Map<CardType, DrawEffect> drawEffects() {
         return Map.of();
     }
 }

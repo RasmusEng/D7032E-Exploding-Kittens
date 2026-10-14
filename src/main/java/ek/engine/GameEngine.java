@@ -3,7 +3,6 @@ package ek.engine;
 import ek.model.Card;
 import ek.model.CardType;
 import ek.model.Player;
-import ek.player.HandChange;
 import ek.player.PlayerController;
 import ek.player.TurnAction;
 import ek.rules.TurnState;
@@ -12,24 +11,24 @@ import ek.util.Randomizer;
 import java.util.List;
 import java.util.Map;
 
-import static ek.model.BaseCardType.DEFUSE;
-import static ek.model.BaseCardType.EXPLODING_KITTEN;
-
 /** Runs a set-up game from the first turn until one player is left. */
 public final class GameEngine {
 
     private final GameState state;
     private final GameContext context;
     private final PlayResolver playResolver;
+    private final Map<CardType, DrawEffect> drawEffects;
     private final NopeResolver nopeResolver;
     private final Randomizer randomizer;
     private final List<GameEventListener> listeners;
 
+    /** @param drawEffects what drawing each card type does; any other card goes into the hand */
     public GameEngine(GameState state, Map<Player, PlayerController> controllers,
-                      PlayResolver playResolver, NopeResolver nopeResolver,
-                      Randomizer randomizer, List<GameEventListener> listeners) {
+                      PlayResolver playResolver, Map<CardType, DrawEffect> drawEffects,
+                      NopeResolver nopeResolver, Randomizer randomizer, List<GameEventListener> listeners) {
         this.state = state;
         this.playResolver = playResolver;
+        this.drawEffects = Map.copyOf(drawEffects);
         this.nopeResolver = nopeResolver;
         this.randomizer = randomizer;
         this.listeners = List.copyOf(listeners);
@@ -81,39 +80,16 @@ public final class GameEngine {
         effect.apply(context, actor);                                           // R11
     }
 
+    /** R9a: draws the top card; its {@link DrawEffect} decides whether the player survives (R10). */
     private void drawAndEndTurn(Player actor) {
         TurnState turns = state.turns();
         Card card = state.deck().draw();
         publish(new GameEvent.CardDrawn(actor));
-        if (!card.type().equals(EXPLODING_KITTEN)) {
-            actor.hand().add(card);
-            context.controllerOf(actor).handChanged(new HandChange.Drawn(card));
-            turns.endTurn(state.players());
-        } else if (actor.hand().contains(DEFUSE)) {
-            defuse(actor, card);
-            turns.endTurn(state.players());
-        } else {
-            explode(actor, card);
-            turns.advance(state.players());
+        DrawEffect effect = drawEffects.getOrDefault(card.type(), DrawEffect.KEEP);
+        switch (effect.apply(context, actor, card)) {
+            case SURVIVED -> turns.endTurn(state.players());
+            case EXPLODED -> turns.advance(state.players());
         }
-    }
-
-    /** R10a: discard the Defuse and put the kitten back where the player chooses. */
-    private void defuse(Player actor, Card kitten) {
-        state.discardPile().add(actor.hand().remove(DEFUSE));
-        int deckSize = state.deck().size();
-        PlayerController controller = context.controllerOf(actor);
-        int position = GameContext.askInRange(
-                () -> controller.chooseKittenPosition(context.viewFor(actor), deckSize), 0, deckSize);
-        state.deck().insertAt(position, kitten);
-        publish(new GameEvent.KittenDefused(actor));
-    }
-
-    /** R10b: the player discards their hand and the kitten, and is out of the game. */
-    private void explode(Player actor, Card kitten) {
-        state.discardPile().addAll(actor.explode());
-        state.discardPile().add(kitten);
-        publish(new GameEvent.PlayerExploded(actor));
     }
 
     private void publish(GameEvent event) {

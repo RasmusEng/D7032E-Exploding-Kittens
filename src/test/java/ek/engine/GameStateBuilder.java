@@ -30,11 +30,17 @@ public final class GameStateBuilder {
     private Randomizer randomizer = bound -> 0;
     private Integer startIndex;
     private NopeResolver nopeResolver = instantNopeResolver();
+    private Map<CardType, DrawEffect> drawEffects = baseDrawEffects();
     private GameState state;
 
     /** The base game's play rules: base card effects plus both combos. */
     public static PlayResolver basePlayResolver() {
         return new PlayResolver(new BaseGame().cardEffects(), new TwoOfAKind(), new ThreeOfAKind());
+    }
+
+    /** The base game's draw rules: a drawn Exploding Kitten is defused or explodes. */
+    public static Map<CardType, DrawEffect> baseDrawEffects() {
+        return new BaseGame().drawEffects();
     }
 
     /** Nope window of 0 s run on the calling thread: only Nopes played during the offer count. */
@@ -44,6 +50,12 @@ public final class GameStateBuilder {
 
     public GameStateBuilder nopeResolver(NopeResolver nopeResolver) {
         this.nopeResolver = nopeResolver;
+        return this;
+    }
+
+    /** What drawing each card type does, instead of the base game's. */
+    public GameStateBuilder drawEffects(Map<CardType, DrawEffect> drawEffects) {
+        this.drawEffects = drawEffects;
         return this;
     }
 
@@ -86,7 +98,8 @@ public final class GameStateBuilder {
     public GameEngine buildEngine() {
         state = new GameState(players, deck, new DiscardPile());
         Randomizer engineRandomizer = startIndex == null ? randomizer : startFirst(startIndex, randomizer);
-        return new GameEngine(state, controllers, basePlayResolver(), nopeResolver, engineRandomizer, listeners);
+        return new GameEngine(state, controllers, basePlayResolver(), drawEffects, nopeResolver,
+                engineRandomizer, listeners);
     }
 
     /** A context for applying a single effect; the start player's turn has begun. */

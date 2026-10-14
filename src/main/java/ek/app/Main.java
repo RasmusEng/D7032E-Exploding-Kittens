@@ -3,6 +3,7 @@ package ek.app;
 import ek.combos.ThreeOfAKind;
 import ek.combos.TwoOfAKind;
 import ek.engine.CardEffect;
+import ek.engine.DrawEffect;
 import ek.engine.GameEngine;
 import ek.engine.GameEventListener;
 import ek.engine.GameState;
@@ -11,7 +12,6 @@ import ek.engine.PlayResolver;
 import ek.expansion.BaseGame;
 import ek.expansion.DeckFactory;
 import ek.expansion.Expansion;
-import ek.model.BaseCardType;
 import ek.model.CardType;
 import ek.model.Deck;
 import ek.model.DiscardPile;
@@ -95,8 +95,11 @@ public final class Main {
         Randomizer randomizer = new JavaRandomizer();
         List<Expansion> expansions = List.of(new BaseGame());
         Map<CardType, CardEffect> effects = new LinkedHashMap<>();
+        Map<CardType, DrawEffect> drawEffects = new LinkedHashMap<>();
         expansions.forEach(e -> effects.putAll(e.cardEffects())); // Loading all the expansions including the base game
-        List<CardType> nameable = List.of(BaseCardType.values());
+        expansions.forEach(e -> drawEffects.putAll(e.drawEffects()));
+        DeckFactory deckFactory = new DeckFactory(expansions);
+        List<CardType> nameable = List.copyOf(deckFactory.cardTypes(GameSetup.MAX_PLAYERS));
 
         Map<Player, PlayerController> controllers = new LinkedHashMap<>();
         List<GameEventListener> listeners = new ArrayList<>();
@@ -125,7 +128,7 @@ public final class Main {
 
         Deck deck;
         try {
-            deck = new GameSetup(new DeckFactory(expansions), randomizer).setUp(players);
+            deck = new GameSetup(deckFactory, randomizer).setUp(players);
         } catch (IllegalArgumentException e) {
             exit(e.getMessage());
             return;
@@ -135,6 +138,7 @@ public final class Main {
                     new GameState(players, deck, new DiscardPile()),
                     controllers,
                     new PlayResolver(effects, new TwoOfAKind(), new ThreeOfAKind()),
+                    drawEffects,
                     new NopeResolver(NopeResolver.DEFAULT_WINDOW, nopeExecutor),
                     randomizer,
                     listeners).run();

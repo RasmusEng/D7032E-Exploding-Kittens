@@ -32,7 +32,7 @@ public final class Deck {
         if (cards.isEmpty()) {
             throw new IllegalStateException("Cannot draw from an empty deck");
         }
-        return cards.remove(0);
+        return cards.removeFirst();
     }
 
     /**

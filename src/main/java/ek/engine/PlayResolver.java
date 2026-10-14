@@ -30,7 +30,7 @@ public final class PlayResolver {
         if (cards.isEmpty()) {
             throw new InvalidMoveException("No cards played");
         }
-        CardType type = cards.get(0);
+        CardType type = cards.getFirst();
         if (!cards.stream().allMatch(type::equals)) {
             throw new InvalidMoveException("Combo cards must all have the same name");
         }

@@ -69,6 +69,20 @@ public final class GameContext {
         return targets.get(index);
     }
 
+    /** Asks {@code actor} where to put a card back into the deck: 0 (top) to the deck's size (bottom). */
+    public int chooseDeckPosition(Player actor) {
+        int deckSize = state.deck().size();
+        PlayerController controller = controllerOf(actor);
+        return askInRange(() -> controller.chooseKittenPosition(viewFor(actor), deckSize), 0, deckSize);
+    }
+
+    /** R10b: {@code actor} discards their hand and {@code kitten}, and is out of the game. */
+    public void explode(Player actor, Card kitten) {
+        state.discardPile().addAll(actor.explode());
+        state.discardPile().add(kitten);
+        publish(new GameEvent.PlayerExploded(actor));
+    }
+
     /** Asks until the answer is in {@code min..max} (inclusive). */
     public static int askInRange(IntSupplier ask, int min, int max) {
         int answer;

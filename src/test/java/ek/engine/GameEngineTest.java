@@ -34,7 +34,8 @@ class GameEngineTest {
             RecordingListener listener = new RecordingListener();
 
             Player winner = new GameEngine(new GameState(players, deck, new DiscardPile()),
-                    controllers, GameStateBuilder.basePlayResolver(), GameStateBuilder.instantNopeResolver(),
+                    controllers, GameStateBuilder.basePlayResolver(), GameStateBuilder.baseDrawEffects(),
+                    GameStateBuilder.instantNopeResolver(),
                     randomizer, List.of(listener)).run();
 
             assertEquals(List.of(winner), players.stream().filter(Player::isAlive).toList());
@@ -58,6 +59,24 @@ class GameEngineTest {
                 new GameEvent.TurnStarted(a, 1), new GameEvent.CardDrawn(a),
                 new GameEvent.TurnStarted(b, 1), new GameEvent.CardDrawn(b),
                 new GameEvent.PlayerExploded(b), new GameEvent.Winner(a)), listener.events());
+    }
+
+    @Test
+    void drawEffect_decidesWhatADrawnCardDoes() {
+        // a made-up rule: drawing a Skip explodes you, so new draw rules need no engine change
+        DrawEffect skipExplodes = (ctx, actor, card) -> {
+            ctx.explode(actor, card);
+            return DrawEffect.Outcome.EXPLODED;
+        };
+        GameStateBuilder game = new GameStateBuilder()
+                .player("A", ScriptedController.passing())
+                .player("B", ScriptedController.passing())
+                .deck(SKIP)
+                .startPlayer(0)
+                .drawEffects(Map.of(SKIP, skipExplodes));
+
+        assertSame(game.player(1), game.buildEngine().run());
+        assertFalse(game.player(0).isAlive());
     }
 
     @Test
