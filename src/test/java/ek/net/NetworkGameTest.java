@@ -7,6 +7,7 @@ import ek.engine.RecordingListener;
 import ek.engine.ScriptedController;
 import ek.model.BaseCardType;
 import ek.model.Player;
+import ek.util.Waiter;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static ek.model.BaseCardType.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -41,13 +43,17 @@ class NetworkGameTest {
         RemoteController remote = GameServer.join(pair.server(), "B", List.of(BaseCardType.values()), THREADS);
 
         RecordingListener hostView = new RecordingListener();
-        // a long window: the test only passes quickly if the remote Nope closes it
+        // window 1 is long and really waited: the test only passes quickly if the remote Nope
+        // closes it. Window 2 (on B's Nope) would run its full length, so it runs out at once.
+        AtomicInteger windows = new AtomicInteger();
+        Waiter firstWindowReal = (signal, timeout) ->
+                windows.getAndIncrement() == 0 ? Waiter.REAL.await(signal, timeout) : signal.getCount() == 0;
         GameStateBuilder game = new GameStateBuilder()
                 .player("A", ScriptedController.passing().play(ATTACK), ATTACK)
                 .player("B", remote, NOPE)
                 .deck(SKIP, EXPLODING_KITTEN)
                 .startPlayer(0)
-                .nopeResolver(new NopeResolver(Duration.ofSeconds(30), THREADS))
+                .nopeResolver(new NopeResolver(Duration.ofSeconds(30), THREADS, firstWindowReal))
                 .listener(hostView)
                 .listener(remote);
 

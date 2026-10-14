@@ -20,9 +20,11 @@ import java.util.Set;
  */
 public final class BotController implements PlayerController {
 
-    /** Shortest and longest time the bot takes to play a Nope, so humans get a chance first. */
+    /** Shortest time the bot takes to play a Nope, so humans get a chance first. */
     static final Duration MIN_NOPE_DELAY = Duration.ofSeconds(1);
-    static final Duration MAX_NOPE_DELAY = Duration.ofSeconds(5);
+
+    /** The bot Nopes at least this long before the window ends, so it is never too late. */
+    static final Duration NOPE_MARGIN = Duration.ofMillis(500);
 
     private final Randomizer randomizer;
     private final Set<CardType> playableAlone;
@@ -88,23 +90,22 @@ public final class BotController implements PlayerController {
     }
 
     /**
-     * Nopes half the time, after a random answer time of 1–5 seconds. With the 5-second
-     * window a slow answer can be too late; the offer then refuses it, as for a human.
-     * Otherwise it declines at once, so the game doesn't wait for it.
+     * Nopes half the time (if it holds a Nope), at a random moment inside the window: 1 s
+     * after it opens at the earliest, {@link #NOPE_MARGIN} before it ends at the latest.
+     * Otherwise it returns at once; the window still runs its full length, so the bot's
+     * choice never changes how long the game waits.
      */
     @Override
     public void offerNope(GameView view, NopeOffer offer) {
-        if (randomizer.nextInt(2) == 0) {
-            sleeper.sleep(nopeDelay());
+        if (offer.canNope() && randomizer.nextInt(2) == 0) {
+            sleeper.sleep(nopeDelay(offer.window()));
             offer.playNope();
-        } else {
-            offer.decline();
         }
     }
 
-    /** Uniform in [{@link #MIN_NOPE_DELAY}, {@link #MAX_NOPE_DELAY}], to the millisecond. */
-    private Duration nopeDelay() {
-        long spread = MAX_NOPE_DELAY.minus(MIN_NOPE_DELAY).toMillis(); // So the player also has time to nope a card
+    /** Uniform in [{@link #MIN_NOPE_DELAY}, window − {@link #NOPE_MARGIN}], to the millisecond. */
+    private Duration nopeDelay(Duration window) {
+        long spread = Math.max(0, window.minus(NOPE_MARGIN).minus(MIN_NOPE_DELAY).toMillis());
         return MIN_NOPE_DELAY.plusMillis(randomizer.nextInt((int) spread + 1));
     }
 

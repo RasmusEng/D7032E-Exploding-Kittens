@@ -85,8 +85,12 @@ On your turn, enter the numbers of the cards to play, then press Enter:
 - `2 5`: play cards 2 and 5 together. Two or three cards with the same name make a combo.
 - `d`: draw a card, which ends your turn (a pass).
 
-When another player plays a card and you hold a Nope, you have 5 seconds to press Enter to Nope it. If you
-don't want to, type `n` and Enter so the game goes on at once (otherwise the offer runs out after 5 seconds).
+After every card play that can be Noped, everyone gets a 5-second Nope window with a countdown
+("Nope Bob's Attack? Enter = Nope… 4"). If you hold a Nope, press Enter to play it. The window
+can't be skipped: it always runs the full 5 seconds, also when nobody holds a Nope, so the
+waiting never gives away who has one. A Nope starts a new 5-second window, in which the others
+(including the original player) can Nope back (Yup). Without a Nope you see the same countdown,
+and Enter only tells you that you have none. On your own play you see "Waiting for Nopes… 4".
 
 The screen shows a dashboard (the deck size, the other players' hand sizes, the latest events
 and your hand) that is redrawn in place whenever something happens, so the terminal never scrolls.

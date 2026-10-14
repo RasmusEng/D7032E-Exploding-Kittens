@@ -48,12 +48,21 @@ public interface PlayerController {
     void seeTheFuture(List<Card> topCards);
 
     /**
-     * Offers the chance to play Nope (only to players holding one). May run on a separate
-     * thread. To Nope, call {@link NopeOffer#playNope()} — now or later from another thread,
-     * while the window is open. Call {@link NopeOffer#decline()} to let the play go ahead;
-     * doing nothing also means no Nope, but the game then waits for the window to run out.
+     * A Nope window opened on someone else's play (rule 12). Offered to every player who
+     * didn't play last, whether or not they hold a Nope ({@link NopeOffer#canNope()}). May
+     * run on a separate thread. To Nope, call {@link NopeOffer#playNope()}, now or later
+     * from another thread, while the window is open. The window always runs its full length
+     * unless someone Nopes, so returning early doesn't speed the game up.
      */
     void offerNope(GameView view, NopeOffer offer);
+
+    /**
+     * A Nope window opened on this player's own play (or their own Nope), so they can show it
+     * while the others decide. May run on a separate thread. Purely informational; the
+     * default ignores it.
+     */
+    default void watchNopeWindow(GameView view, NopeWindow window) {
+    }
 
     /**
      * The cards are dealt and the game is about to start: shows this player their hand and

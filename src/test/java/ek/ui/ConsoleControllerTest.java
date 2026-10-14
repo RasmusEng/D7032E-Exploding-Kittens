@@ -7,13 +7,17 @@ import ek.player.GameView.OpponentView;
 import ek.player.HandChange;
 import ek.player.NopeOffer;
 import ek.player.TurnAction;
+import ek.util.Sleeper;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.io.IOException;
+import java.io.Reader;
 import java.io.StringReader;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 import static ek.model.BaseCardType.*;
@@ -25,7 +29,69 @@ class ConsoleControllerTest {
 
     private ConsoleController controller(String input) {
         return new ConsoleController(new BufferedReader(new StringReader(input)),
-                new ConsoleOutput(new PrintStream(output, true)), List.of(DEFUSE, NOPE, TACO_CAT));
+                new ConsoleOutput(new PrintStream(output, true)), List.of(DEFUSE, NOPE, TACO_CAT), Sleeper.NONE);
+    }
+
+    /** A controller for a Nope countdown: typed input, then silence; time passes only through {@code sleeper}. */
+    private ConsoleController countdownController(String typed, Style style, Sleeper sleeper) {
+        return new ConsoleController(new BufferedReader(new TypedInput(typed)),
+                new ConsoleOutput(new PrintStream(output, true), style), List.of(NOPE), sleeper);
+    }
+
+    /** Input that holds {@code typed} and then nothing: never ready again, and never read again. */
+    private static final class TypedInput extends Reader {
+        private final StringReader text;
+        private int left;
+
+        TypedInput(String typed) {
+            text = new StringReader(typed);
+            left = typed.length();
+        }
+
+        @Override
+        public int read(char[] buffer, int offset, int length) throws IOException {
+            if (left == 0) {
+                throw new AssertionError("read input that was never typed");
+            }
+            int n = text.read(buffer, offset, Math.min(length, left));
+            left -= n;
+            return n;
+        }
+
+        @Override
+        public boolean ready() {
+            return left > 0;
+        }
+
+        @Override
+        public void close() {
+        }
+    }
+
+    /** Lets time pass instantly; closes {@code window} once its whole length has been slept, as the engine would. */
+    private static final class WindowClock implements Sleeper {
+        private final FakeOffer window;
+        final List<Duration> sleeps = new ArrayList<>();
+
+        WindowClock(FakeOffer window) {
+            this.window = window;
+        }
+
+        @Override
+        public void sleep(Duration duration) {
+            sleeps.add(duration);
+            if (sleeps.stream().reduce(Duration.ZERO, Duration::plus).compareTo(window.window()) >= 0) {
+                window.open = false;
+            }
+        }
+
+        Duration total() {
+            return sleeps.stream().reduce(Duration.ZERO, Duration::plus);
+        }
+    }
+
+    private static int count(String text, String part) {
+        return text.split(java.util.regex.Pattern.quote(part), -1).length - 1;
     }
 
     private static GameView view(CardType... hand) {
@@ -39,8 +105,9 @@ class ConsoleControllerTest {
 
     /** Fake offer: open until closed; records whether Nope was played. */
     private static class FakeOffer implements NopeOffer {
-        boolean open = true;
+        volatile boolean open = true;
         boolean noped;
+        boolean canNope = true;
 
         public String playedBy() { return "Bob"; }
         public List<CardType> cards() { return List.of(ATTACK); }
@@ -48,10 +115,10 @@ class ConsoleControllerTest {
         public Duration window() { return Duration.ofSeconds(5); }
         public boolean isOpen() { return open; }
         public boolean playNope() {
-            noped = open;
-            return open;
+            noped = canNope && open;
+            return noped;
         }
-        public void decline() { }
+        public boolean canNope() { return canNope; }
     }
 
     @Test
@@ -85,7 +152,7 @@ class ConsoleControllerTest {
     void chooseAction_dashboardShowsRecentEvents() {
         ConsoleOutput out = new ConsoleOutput(new PrintStream(output, true));
         out.event("Bob played Attack.", Style.Tone.NORMAL);
-        new ConsoleController(new BufferedReader(new StringReader("d\n")), out, List.of())
+        new ConsoleController(new BufferedReader(new StringReader("d\n")), out, List.of(), Sleeper.NONE)
                 .chooseAction(view(SKIP));
         assertTrue(printed().lines().anyMatch(l -> l.startsWith("│ Bob played Attack.")));
     }
@@ -93,7 +160,7 @@ class ConsoleControllerTest {
     @Test
     void privateLines_areKeptForTheDashboard() {
         ConsoleOutput out = new ConsoleOutput(new PrintStream(output, true));
-        ConsoleController controller = new ConsoleController(new BufferedReader(new StringReader("")), out, List.of());
+        ConsoleController controller = new ConsoleController(new BufferedReader(new StringReader("")), out, List.of(), Sleeper.NONE);
         controller.handChanged(new HandChange.Drawn(new Card(SKIP)));
         controller.seeTheFuture(List.of(new Card(NOPE)));
         assertEquals(List.of("You drew Skip.", "The top of the deck: Nope (top first)"),
@@ -182,18 +249,100 @@ class ConsoleControllerTest {
     }
 
     @Test
-    void offerNope_asksForEnter_withoutACountdown() {
-        controller("\n").offerNope(view(NOPE), new FakeOffer());
-        assertTrue(printed().contains("Nope Bob's Attack? Enter = Nope"));
-        assertFalse(printed().contains("■"));
-    }
-
-    @Test
     void offerNope_otherInput_askedAgain() {
         FakeOffer offer = new FakeOffer();
         controller("x\n\n").offerNope(view(NOPE), offer);
         assertTrue(offer.noped);
-        assertTrue(printed().contains("Press Enter to Nope, or let it go."));
+        assertTrue(printed().contains("Press Enter to Nope."));
+    }
+
+    @Test
+    void offerNope_ansi_countsDownOncePerSecond_throughTheSleeper() {
+        FakeOffer offer = new FakeOffer();
+        WindowClock clock = new WindowClock(offer);
+        countdownController("", Style.ANSI, clock).offerNope(view(NOPE), offer);
+
+        assertEquals(Duration.ofSeconds(5), clock.total());      // no real waiting: the fake clock ran it
+        String text = printed();
+        assertTrue(text.contains("Nope Bob's Attack? Enter = Nope… 5"), text);
+        for (int second = 4; second >= 1; second--) {
+            assertTrue(text.contains("Enter = Nope… " + second), "shows " + second);
+        }
+        assertFalse(text.contains("Enter = Nope… 0"));
+        assertFalse(offer.noped);
+    }
+
+    @Test
+    void offerNope_ansi_tickRewritesOnlyThePromptLine_notTheFrame() {
+        FakeOffer offer = new FakeOffer();
+        countdownController("", Style.ANSI, new WindowClock(offer)).offerNope(view(NOPE), offer);
+
+        String text = printed();
+        assertEquals(4, count(text, "\0337\r"), "one line rewrite per tick: 4, 3, 2, 1");
+        String ticks = text.substring(text.indexOf("\0337\r"), text.lastIndexOf("\0338"));
+        assertFalse(ticks.contains("\033[H"), "no full redraw between ticks, so typing isn't wiped");
+    }
+
+    @Test
+    void offerNope_plain_printsThePromptOnce_withoutTicks() {
+        FakeOffer offer = new FakeOffer();
+        countdownController("", Style.PLAIN, new WindowClock(offer)).offerNope(view(NOPE), offer);
+
+        String text = printed();
+        assertEquals(1, count(text, "Nope Bob's Attack? Enter = Nope (5 s): "), text);
+        assertFalse(text.contains("… 4"));
+        assertFalse(text.contains("\0337"));
+    }
+
+    @Test
+    void offerNope_withoutANope_sameCountdown_enterSaysSo_andKeepsCounting() {
+        FakeOffer offer = new FakeOffer();
+        offer.canNope = false;
+        WindowClock clock = new WindowClock(offer);
+        countdownController("\n", Style.PLAIN, clock).offerNope(view(SKIP), offer);
+
+        assertTrue(printed().contains("Nope window for Bob's Attack (5 s): "), printed());
+        assertTrue(printed().contains("You have no Nope."));
+        assertFalse(offer.noped);
+        assertEquals(Duration.ofSeconds(5), clock.total());     // it kept counting to the end
+    }
+
+    @Test
+    void offerNope_withNopesSoFar_asksToYup() {
+        FakeOffer offer = new FakeOffer() {
+            @Override
+            public int nopesSoFar() { return 1; }
+        };
+        controller("\n").offerNope(view(NOPE), offer);
+        assertTrue(printed().contains("Play Nope to Yup Bob's Attack back on?"), printed());
+    }
+
+    @Test
+    void watchNopeWindow_showsTheCountdownOnYourOwnPlay() {
+        FakeOffer window = new FakeOffer();
+        WindowClock clock = new WindowClock(window);
+        countdownController("\n", Style.PLAIN, clock).watchNopeWindow(view(SKIP), window);
+
+        assertTrue(printed().contains("Waiting for Nopes on your Attack (5 s): "), printed());
+        assertTrue(printed().contains("You can't Nope your own play."));
+        assertEquals(Duration.ofSeconds(5), clock.total());
+    }
+
+    @Test
+    void countdown_closedByTheServer_endsThePrompt() {
+        FakeOffer offer = new FakeOffer();
+        // the window closes after 2 s (e.g. NopeClosed from the server after someone else's Nope)
+        Sleeper closesEarly = new Sleeper() {
+            Duration slept = Duration.ZERO;
+            public void sleep(Duration d) {
+                slept = slept.plus(d);
+                if (slept.compareTo(Duration.ofSeconds(2)) >= 0) {
+                    offer.open = false;
+                }
+            }
+        };
+        countdownController("", Style.PLAIN, closesEarly).offerNope(view(NOPE), offer);
+        assertTrue(printed().contains("(time's up)"));
     }
 
     @Test

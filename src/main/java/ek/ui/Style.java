@@ -68,6 +68,14 @@ public final class Style {
         return ESC + "K";
     }
 
+    /**
+     * Writes {@code text} over the start of the cursor's line and puts the cursor back where it
+     * was, so anything typed after it stays. Only valid if {@link #canRewriteLines()}.
+     */
+    String rewriteLine(String text) {
+        return "\0337\r" + text + "\0338";      // save cursor, start of line, text, restore cursor
+    }
+
     /** Erases from the cursor to the end of the screen; only valid if {@link #canRewriteLines()}. */
     String eraseBelow() {
         return ESC + "J";

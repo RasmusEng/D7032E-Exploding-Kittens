@@ -100,9 +100,11 @@ public sealed interface Message extends Serializable {
      * A Nope window opened; {@code offerId} links the later messages to this offer.
      * {@code windowMillis} is its length, so the client can count down from when it arrives
      * (a plain number, so the {@link ObjectStreamChannel#FILTER} needs no {@code java.time} classes).
+     * {@code canNope} says whether this player holds a Nope; every player but the last one to
+     * play gets the offer either way.
      */
     record OfferNope(int offerId, GameView view, String playedBy, List<CardType> cards, int nopesSoFar,
-                     long windowMillis) implements ToClient {
+                     long windowMillis, boolean canNope) implements ToClient {
         public OfferNope {
             Objects.requireNonNull(view, "view");
             Objects.requireNonNull(playedBy, "playedBy");
@@ -113,7 +115,23 @@ public sealed interface Message extends Serializable {
         }
     }
 
-    /** The offer's window has closed; the client stops asking. */
+    /**
+     * A Nope window opened on this client's own play (or Nope), shown as a countdown while the
+     * others decide. It shares the offer ids, so {@link NopeClosed} ends it like an offer.
+     */
+    record WatchNopeWindow(int offerId, GameView view, String playedBy, List<CardType> cards, int nopesSoFar,
+                           long windowMillis) implements ToClient {
+        public WatchNopeWindow {
+            Objects.requireNonNull(view, "view");
+            Objects.requireNonNull(playedBy, "playedBy");
+            if (windowMillis < 0) {
+                throw new IllegalArgumentException("windowMillis < 0");
+            }
+            cards = List.copyOf(cards);
+        }
+    }
+
+    /** The offer's (or watched window's) window has closed; the client stops its countdown. */
     record NopeClosed(int offerId) implements ToClient {
     }
 
@@ -139,9 +157,5 @@ public sealed interface Message extends Serializable {
 
     /** The client plays Nope on the given offer. */
     record PlayNope(int offerId) implements ToServer {
-    }
-
-    /** The client won't Nope the given offer. */
-    record DeclineNope(int offerId) implements ToServer {
     }
 }

@@ -6,16 +6,20 @@ import ek.player.GameView;
 import ek.player.GameView.OpponentView;
 import ek.player.HandChange;
 import ek.player.NopeOffer;
+import ek.player.NopeWindow;
 import ek.player.PlayerController;
 import ek.player.TurnAction;
 import ek.ui.Style.Tone;
+import ek.util.Sleeper;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -23,25 +27,31 @@ import java.util.stream.Collectors;
  * until it is valid; the engine only gets well-formed answers. Each turn starts by drawing
  * the {@link Dashboard}, and every later decision updates it from its fresh {@link GameView}.
  *
- * <p><b>Thread-safety.</b> {@link #offerNope} runs on a Nope-window thread while the engine
- * thread waits. Every read takes {@code inputLock}, and the Nope prompt only reads while the
- * window is open, so a line is never read by two prompts. Output goes through the
- * thread-safe {@link ConsoleOutput}.
+ * <p><b>Thread-safety.</b> {@link #offerNope} and {@link #watchNopeWindow} run on a
+ * Nope-window thread while the engine thread waits. Every read takes {@code inputLock}, and
+ * the Nope countdown only reads while the window is open, so a line is never read by two
+ * prompts. Output goes through the thread-safe {@link ConsoleOutput}.
  */
 public final class ConsoleController implements PlayerController {
 
-    private static final long NOPE_POLL_MILLIS = 50;
+    /** How often the Nope countdown checks for input and for the window closing. */
+    private static final Duration NOPE_POLL = Duration.ofMillis(50);
 
     private final BufferedReader in;
     private final ConsoleOutput out;
     private final List<CardType> nameableCards;
+    private final Sleeper sleeper;
     private final Object inputLock = new Object();
 
-    /** @param nameableCards card types offered when naming a card for three of a kind */
-    public ConsoleController(BufferedReader in, ConsoleOutput out, List<CardType> nameableCards) {
+    /**
+     * @param nameableCards card types offered when naming a card for three of a kind
+     * @param sleeper       paces the Nope countdown; tests pass one that doesn't really wait
+     */
+    public ConsoleController(BufferedReader in, ConsoleOutput out, List<CardType> nameableCards, Sleeper sleeper) {
         this.in = in;
         this.out = out;
         this.nameableCards = List.copyOf(nameableCards);
+        this.sleeper = sleeper;
     }
 
     @Override
@@ -118,34 +128,99 @@ public final class ConsoleController implements PlayerController {
     }
 
     /**
-     * Asks whether to Nope: Enter plays it, any other input asks again. Unanswered, the offer
-     * closes when the window's time is up and the play goes ahead.
+     * Shows the Nope window as a countdown until it closes; only the engine (or the server)
+     * closes it. With a Nope, Enter plays it. Without one, the same countdown is shown and
+     * Enter only says so, so nobody can tell from the screen or the timing who holds a Nope.
      */
     @Override
     public void offerNope(GameView view, NopeOffer offer) {
         out.updateBoard(board(view, new HandMenu(view.hand())));
         String play = offer.playedBy() + "'s " + ConsoleView.describe(offer.cards());
-        String question = (offer.nopesSoFar() % 2 == 1 ? "Play Nope to Yup " + play + " back on?" : "Nope " + play + "?")
-                + " Enter = Nope: ";
-        long prompt = out.prompt(out.style().paint(question, Tone.NOPE));
-        while (offer.isOpen()) {
-            Optional<String> line = readLineIfOpen(offer);
+        if (!offer.canNope()) {
+            countdown(offer, "Nope window for " + play, answer -> {
+                out.println("You have no Nope.");
+                return false;
+            });
+            return;
+        }
+        String question = offer.nopesSoFar() % 2 == 1
+                ? "Play Nope to Yup " + play + " back on? Enter = Nope"
+                : "Nope " + play + "? Enter = Nope";
+        countdown(offer, question, answer -> {
+            if (!answer.isEmpty()) {
+                out.println("Press Enter to Nope.");
+                return false;
+            }
+            if (!offer.playNope()) {
+                out.event("Too late!", Tone.MUTED);
+            }
+            return true;
+        });
+    }
+
+    /** Shows the countdown of the window on this player's own play (or Nope). */
+    @Override
+    public void watchNopeWindow(GameView view, NopeWindow window) {
+        out.updateBoard(board(view, new HandMenu(view.hand())));
+        String text = window.nopesSoFar() == 0
+                ? "Waiting for Nopes on your " + ConsoleView.describe(window.cards())
+                : "Waiting for Nopes on your Nope";
+        countdown(window, text, answer -> {
+            out.println("You can't Nope your own play.");
+            return false;
+        });
+    }
+
+    /**
+     * Prompts with {@code text} and the seconds left until {@code window} closes. A redrawing
+     * console rewrites only the prompt's line once a second; a plain one prints the prompt
+     * once with the window's length. Time is counted from the {@link Sleeper}'s pauses: only
+     * for display, as the window closes when the engine (or server) says so.
+     *
+     * @param onAnswer handles a typed line (trimmed); returns {@code true} to stop asking
+     */
+    private void countdown(NopeWindow window, String text, Predicate<String> onAnswer) {
+        long total = secondsLeft(window.window(), Duration.ZERO);
+        long shown = total;
+        long prompt = out.prompt(countdownPrompt(text, shown, total));
+        Duration elapsed = Duration.ZERO;
+        while (window.isOpen()) {
+            Optional<String> line = readLineIfOpen(window);
             if (line.isPresent()) {
                 out.answered(prompt, line.get());
-                String answer = line.get().trim();
-                if (answer.isEmpty()) {
-                    if (!offer.playNope()) {
-                        out.event("Too late!", Tone.MUTED);
-                    }
+                if (onAnswer.test(line.get().trim())) {
                     return;
                 }
-                out.println("Press Enter to Nope, or let it go.");
-                prompt = out.prompt(out.style().paint(question, Tone.NOPE));
-            } else if (!pause()) {
+                prompt = out.prompt(countdownPrompt(text, shown, total));
+                continue;
+            }
+            sleeper.sleep(NOPE_POLL);
+            if (Thread.currentThread().isInterrupted()) {
                 return;
+            }
+            elapsed = elapsed.plus(NOPE_POLL);
+            long left = Math.max(1, secondsLeft(window.window(), elapsed));   // the window, not the clock, ends it
+            if (left != shown) {
+                shown = left;
+                out.updatePrompt(prompt, countdownPrompt(text, shown, total));
             }
         }
         out.closePrompt(prompt, "(time's up)");
+    }
+
+    /** "text… 4" padded to the same width every second when redrawing; "text (5 s): " when plain. */
+    private String countdownPrompt(String text, long secondsLeft, long totalSeconds) {
+        if (!out.style().canRewriteLines()) {
+            return out.style().paint(text + " (" + totalSeconds + " s): ", Tone.NOPE);
+        }
+        int width = String.valueOf(totalSeconds).length();
+        return out.style().paint(text + "… " + String.format("%" + width + "d", secondsLeft) + " ", Tone.NOPE);
+    }
+
+    /** Whole seconds left, rounded up, never below 0. */
+    static long secondsLeft(Duration window, Duration elapsed) {
+        Duration left = window.minus(elapsed);
+        return left.isNegative() ? 0 : (left.toMillis() + 999) / 1000;
     }
 
     /** The dashboard for {@code view}, numbering the hand like {@code hand}. */
@@ -214,24 +289,13 @@ public final class ConsoleController implements PlayerController {
     }
 
     /** Reads a line only if one is waiting and the window is still open; never blocks. */
-    private Optional<String> readLineIfOpen(NopeOffer offer) {
+    private Optional<String> readLineIfOpen(NopeWindow window) {
         synchronized (inputLock) {
             try {
-                return offer.isOpen() && in.ready() ? Optional.of(requireOpen(in.readLine())) : Optional.empty();
+                return window.isOpen() && in.ready() ? Optional.of(requireOpen(in.readLine())) : Optional.empty();
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
-        }
-    }
-
-    /** @return false if interrupted (flag restored) */
-    private static boolean pause() {
-        try {
-            Thread.sleep(NOPE_POLL_MILLIS);
-            return true;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
         }
     }
 

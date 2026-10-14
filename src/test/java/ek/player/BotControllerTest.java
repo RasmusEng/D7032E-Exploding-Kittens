@@ -105,31 +105,66 @@ class zBotControllerTest {
         }
     }
 
+    /** An offer that records when the bot Nopes; it is always open. */
+    private static final class FakeOffer implements NopeOffer {
+        private final boolean canNope;
+        private final List<Duration> waits;
+        boolean noped;
+        boolean nopedAfterWait;
+
+        FakeOffer(boolean canNope, List<Duration> waits) {
+            this.canNope = canNope;
+            this.waits = waits;
+        }
+
+        public String playedBy() { return "A"; }
+        public List<CardType> cards() { return List.of(ATTACK); }
+        public int nopesSoFar() { return 0; }
+        public Duration window() { return Duration.ofSeconds(5); }
+        public boolean isOpen() { return true; }
+        public boolean canNope() { return canNope; }
+        public boolean playNope() {
+            noped = true;
+            nopedAfterWait = waits.size() == 1;
+            return canNope;
+        }
+    }
+
     @Test
-    void offerNope_waitsTwoToFiveSecondsBeforeNoping() {
-        for (long seed = 0; seed < 50; seed++) {
+    void offerNope_nopesHalfTheTime_alwaysInsideTheWindow() {
+        int nopes = 0;
+        // one Random for all rounds: the first nextInt(2) of Random(0), Random(1), ... is always the same
+        JavaRandomizer randomizer = new JavaRandomizer(new Random(42));
+        for (int round = 0; round < 50; round++) {
             List<Duration> waits = new ArrayList<>();
-            boolean[] nopedAfterWait = {false};
-            boolean[] declined = {false};
-            BotController bot = new BotController(new JavaRandomizer(new Random(seed)),
+            BotController bot = new BotController(randomizer,
                     new BaseGame().cardEffects().keySet(), NAMEABLE, waits::add);
-            bot.offerNope(view(NOPE), new NopeOffer() {
-                public String playedBy() { return "A"; }
-                public List<CardType> cards() { return List.of(ATTACK); }
-                public int nopesSoFar() { return 0; }
-                public Duration window() { return Duration.ofSeconds(5); }
-                public boolean isOpen() { return true; }
-                public boolean playNope() { nopedAfterWait[0] = waits.size() == 1; return true; }
-                public void decline() { declined[0] = true; }
-            });
-            assertNotEquals(nopedAfterWait[0], declined[0], "either Nopes or declines");
-            if (nopedAfterWait[0]) {
+            FakeOffer offer = new FakeOffer(true, waits);
+            bot.offerNope(view(NOPE), offer);
+            if (offer.noped) {
+                nopes++;
+                assertTrue(offer.nopedAfterWait, "waits first, so humans get a chance");
                 Duration wait = waits.getFirst();
-                assertTrue(wait.compareTo(Duration.ofSeconds(2)) >= 0 && wait.compareTo(Duration.ofSeconds(5)) <= 0,
+                // at least 1 s, and at least half a second before the 5-second window ends
+                assertTrue(wait.compareTo(Duration.ofSeconds(1)) >= 0 && wait.compareTo(Duration.ofMillis(4500)) <= 0,
                         "waited " + wait);
             } else {
-                assertTrue(waits.isEmpty(), "declines at once when the bot doesn't Nope");
+                assertTrue(waits.isEmpty(), "returns at once when it doesn't Nope; the window still runs its length");
             }
         }
+        assertTrue(nopes > 0 && nopes < 50, "Nopes some of the time: " + nopes);
+    }
+
+    @Test
+    void offerNope_withoutANope_doesNothing() {
+        List<Duration> waits = new ArrayList<>();
+        int[] draws = {0};
+        BotController bot = new BotController(bound -> { draws[0]++; return 0; },
+                new BaseGame().cardEffects().keySet(), NAMEABLE, waits::add);
+        FakeOffer offer = new FakeOffer(false, waits);
+        bot.offerNope(view(SKIP), offer);
+        assertFalse(offer.noped);
+        assertTrue(waits.isEmpty());
+        assertEquals(0, draws[0], "no randomness used, as when bots without a Nope weren't offered");
     }
 }
