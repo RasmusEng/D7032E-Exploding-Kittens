@@ -1,0 +1,6 @@
+# Test-only expansions. Deliberately not in order() order, and with broken entries:
+# the registry must sort them and skip (and report) the ones that can't be loaded.
+ek.expansion.TestOnlyExpansion
+ek.expansion.BrokenExpansion
+ek.expansion.MissingExpansion
+ek.expansion.OneKittenLessExpansion

@@ -9,7 +9,9 @@ JUNIT=lib/junit-platform-console-standalone.jar
 
 rm -rf out
 javac --release 21 -d out/classes $(find src/main -name '*.java')
+cp -R src/main/resources/. out/classes/
 javac --release 21 -d out/test-classes -cp out/classes:$JUNIT $(find src/test/java -name '*.java')
+cp -R src/test/resources/. out/test-classes/
 
 if [ $# -eq 0 ]; then
     set -- --scan-class-path

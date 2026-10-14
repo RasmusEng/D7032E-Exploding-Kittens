@@ -22,6 +22,16 @@ import static ek.model.BaseCardType.*;
 public final class BaseGame implements Expansion {
 
     @Override
+    public String name() {
+        return "Base game";
+    }
+
+    @Override
+    public String description() {
+        return "The original Exploding Kittens deck, always included.";
+    }
+
+    @Override
     public Map<CardType, Integer> deckCards(int playerCount) {
         Map<CardType, Integer> cards = new LinkedHashMap<>();
         cards.put(DEFUSE, playerCount == 5 ? 1 : 2);

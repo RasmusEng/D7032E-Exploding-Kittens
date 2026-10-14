@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
 # Builds and starts a game.
-#   ./run <numPlayers> <numBots>   host a game (numPlayers = humans incl. you)
+#   ./run                          host a game, set up in a menu (expansions, variants, players)
+#   ./run <numPlayers> <numBots>   host a base game without the menu (numPlayers = humans incl. you)
 #   ./run client <ip>              join a game hosted on <ip>
 set -euo pipefail
 cd "$(dirname "$0")"
 
-if [ $# -ne 2 ]; then
-    echo "Usage: ./run <numPlayers> <numBots>   or   ./run client <ip>" >&2
+if [ $# -ne 0 ] && [ $# -ne 2 ]; then
+    echo "Usage: ./run   or   ./run <numPlayers> <numBots>   or   ./run client <ip>" >&2
     exit 1
 fi
 
 rm -rf out/classes
 javac --release 21 -d out/classes $(find src/main -name '*.java')
+cp -R src/main/resources/. out/classes/
 
-if [ "$1" = "client" ]; then
+if [ $# -eq 0 ]; then
+    exec java -cp out/classes ek.app.Main server
+elif [ "$1" = "client" ]; then
     exec java -cp out/classes ek.app.Main client "$2"
 else
     exec java -cp out/classes ek.app.Main server "$1" "$2"
