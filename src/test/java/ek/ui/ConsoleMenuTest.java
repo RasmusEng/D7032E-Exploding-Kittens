@@ -2,10 +2,10 @@ package ek.ui;
 
 import ek.expansion.BaseGame;
 import ek.expansion.Expansion;
-import ek.expansion.FasterGame;
 import ek.expansion.GameVariant;
 import ek.expansion.OneKittenLessExpansion;
 import ek.expansion.TestOnlyExpansion;
+import ek.expansion.TestOnlyVariant;
 import ek.rules.GameConfig;
 import org.junit.jupiter.api.Test;
 
@@ -22,10 +22,10 @@ class ConsoleMenuTest {
     private final ByteArrayOutputStream output = new ByteArrayOutputStream();
     private final Expansion oneKittenLess = new OneKittenLessExpansion();
     private final Expansion testOnly = new TestOnlyExpansion();
-    private final GameVariant faster = new FasterGame();
+    private final GameVariant variant = new TestOnlyVariant();
 
     private GameConfig ask(String input) {
-        return ask(input, List.of(oneKittenLess, testOnly), List.of(faster), List.of());
+        return ask(input, List.of(oneKittenLess, testOnly), List.of(variant), List.of());
     }
 
     private GameConfig ask(String input, List<Expansion> expansions, List<GameVariant> variants, List<String> warnings) {
@@ -56,7 +56,7 @@ class ConsoleMenuTest {
         GameConfig config = ask("2 1\n1\n1\n2\n");
         assertEquals(List.of(BaseGame.class, OneKittenLessExpansion.class, TestOnlyExpansion.class),
                 config.expansions().stream().map(Object::getClass).toList());
-        assertEquals(List.of(faster), config.variants());
+        assertEquals(List.of(variant), config.variants());
         assertEquals(1, config.humans());
         assertEquals(2, config.bots());
     }
@@ -84,7 +84,7 @@ class ConsoleMenuTest {
         ask("\n\n2\n0\n");
         assertTrue(printed().contains("1) One kitten less"), printed());
         assertTrue(printed().contains("2) Test-only expansion: Adds 3 Test Cards."), printed());
-        assertTrue(printed().contains("1) " + faster.name() + ": " + faster.description()), printed());
+        assertTrue(printed().contains("1) Test-only variant: Removes the top card after dealing."), printed());
     }
 
     @Test

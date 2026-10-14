@@ -85,7 +85,7 @@ ek/
 ├── rules/        GameSetup, TurnState, GameConfig                          — rule logic, no I/O
 ├── cards/        one CardEffect implementation per card                    — Attack, Skip, Favor, ...
 ├── combos/       ComboEffect: TwoOfAKind, ThreeOfAKind
-├── expansion/    GameOption, Expansion, GameVariant (interfaces), BaseGame, FasterGame, DeckFactory,
+├── expansion/    GameOption, Expansion, GameVariant (interfaces), BaseGame, DeckFactory,
 │                 PlayerRange, ExpansionRegistry (ServiceLoader)            — card sets, variants + deck setup
 ├── engine/       GameEngine, GameState, GameContext, CardEffect (interface), PlayResolver, NopeResolver, GameEvent — orchestrates a game
 ├── player/       PlayerController (interface), BotController, GameView, TurnAction (ConsoleController in ui/, RemoteController in net/)
@@ -257,6 +257,7 @@ captures the spec first, then fix the code until it passes.
       `BaseGame` is never looked up and always first, the rest are sorted by `GameOption.order()`;
       broken providers are skipped and shown in the menu. Registrations live in `src/*/resources/META-INF/services`
 - [x] Player limit: defined once in `expansion.PlayerRange.of(expansions)` (2–5 today)
-- [x] Variants: `GameVariant.afterDeal` is the only hook (after dealing, before the kittens); `FasterGame` implemented
+- [x] Variants: structure only. `GameVariant.afterDeal` is the only hook (after dealing, before the kittens);
+      no variant is implemented yet (e.g. "Faster game" would be one new class + a services line)
 - [x] Assembly: `app.GameAssembler` builds deck/effects/engine from a `GameConfig`; `Main` only does I/O wiring
 - [x] Bot strategy scope: random legal moves (`player/BotController`, injected `Randomizer`)

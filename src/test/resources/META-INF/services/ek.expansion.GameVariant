@@ -1,0 +1,2 @@
+# Test-only variant: proves a variant is found without code changes.
+ek.expansion.TestOnlyVariant

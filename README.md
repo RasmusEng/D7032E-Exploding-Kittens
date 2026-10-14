@@ -18,8 +18,8 @@ javac --release 21 -d out/classes $(find src/main -name '*.java')
 cp -R src/main/resources/. out/classes/
 ```
 
-The `cp` line copies `META-INF/services`, which registers the game variants (see
-[Expansions and variants](#expansions-and-variants)); without it the menu offers none.
+The `cp` line copies `META-INF/services`, where expansions and variants are registered (see
+[Expansions and variants](#expansions-and-variants)).
 
 ## Test
 
@@ -49,8 +49,7 @@ java -cp out/classes ek.app.Main server
 The menu asks, in this order, for:
 
 1. the expansions to add (the base game is always included),
-2. the game variants, e.g. *Faster game* (a third of the deck is removed before the
-   Exploding Kittens go in),
+2. the game variants,
 3. the number of human players (including you; the others join as clients) and bots.
 
 Choose expansions and variants by number, separated by spaces, or press Enter for none.
@@ -96,7 +95,8 @@ To turn colours and redrawing off and get a plain scrolling log, set `NO_COLOR=1
 ## Expansions and variants
 
 Expansions and variants are found when the game starts with Java's `ServiceLoader`, so a
-new one needs no change to this code. An expansion is a class implementing
+new one needs no change to this code. None ship with the game yet: the menu shows
+"No expansions installed" until one is added. An expansion is a class implementing
 `ek.expansion.Expansion` (a variant: `ek.expansion.GameVariant`) with a public no-argument
 constructor, registered by its full class name in
 `META-INF/services/ek.expansion.Expansion` (or `...GameVariant`). The base game is always

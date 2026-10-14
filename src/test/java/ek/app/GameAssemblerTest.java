@@ -3,9 +3,9 @@ package ek.app;
 import ek.engine.GameEngine;
 import ek.engine.ScriptedController;
 import ek.expansion.Expansion;
-import ek.expansion.FasterGame;
 import ek.expansion.OneKittenLessExpansion;
 import ek.expansion.TestOnlyExpansion;
+import ek.expansion.TestOnlyVariant;
 import ek.model.Deck;
 import ek.model.Player;
 import ek.player.PlayerController;
@@ -81,10 +81,10 @@ class GameAssemblerTest {
     @Test
     void selectedVariant_isApplied() {
         Deck plain = deck(GameConfig.baseGame(2, 0));
-        Deck faster = deck(GameConfig.of(2, 0, List.of(), List.of(new FasterGame())));
-        // 34 cards left after dealing, a third (11) removed, then the kitten
+        Deck withVariant = deck(GameConfig.of(2, 0, List.of(), List.of(new TestOnlyVariant())));
+        // the test variant removes one card after dealing
         assertEquals(35, plain.size());
-        assertEquals(24, faster.size());
+        assertEquals(34, withVariant.size());
     }
 
     @Test

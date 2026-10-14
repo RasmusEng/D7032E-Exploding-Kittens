@@ -380,12 +380,15 @@ One short entry per decision: what, and why.
   interface, the menu, instead of a second syntax to keep in step with the menu.
 
 - **Variants: `GameVariant.afterDeal(deck, randomizer)`, one hook in `GameSetup`** (Strategy).
-  It runs between dealing (rule 5) and adding the kittens (rule 6). `FasterGame` (the
-  official "Faster game") shuffles and removes a third of the deck there. Rule 6 still runs
-  afterwards, so the kitten count is unchanged. Adding the hook was a one-time edit to
+  It runs between dealing (rule 5) and adding the kittens (rule 6), which is where the
+  official "Faster game" would remove a third of the deck. No variant is implemented yet
+  (not needed now); the interface, the hook, discovery and the menu are in place, and a
+  test-only variant shows they work. Rule 6 still runs after the hook, so the kitten count
+  is unchanged. Adding the hook was a one-time edit to
   `GameSetup`; a new variant is now a new class plus a line in
   `META-INF/services/ek.expansion.GameVariant`. *Trade-off:* the hook only allows changing
   the deck between dealing and the kittens. That covers the deck-size variants, but not
   variants that change turn rules, which would need an engine hook. That hook is left out
   until one is needed (no speculative framework). Variants as `Expansion`s were rejected:
-  `cardsAfterDeal` only edits counts and has no randomizer.
+  `cardsAfterDeal` only edits counts and has no randomizer, so a deck-trimming variant
+  couldn't be written as one.

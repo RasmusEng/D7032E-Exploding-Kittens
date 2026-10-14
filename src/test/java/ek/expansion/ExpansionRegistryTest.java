@@ -51,7 +51,7 @@ class ExpansionRegistryTest {
     }
 
     @Test
-    void findsTheFasterVariant() {
-        assertEquals(List.of(FasterGame.class), classes(registry.variants()));
+    void findsAVariantRegisteredOnlyInTestResources() {
+        assertEquals(List.of(TestOnlyVariant.class), classes(registry.variants()));
     }
 }

@@ -1,1 +1,4 @@
-ek.expansion.FasterGame
+# Game variants found by ek.expansion.ExpansionRegistry and offered in the setup menu.
+# Register one class implementing ek.expansion.GameVariant per line, e.g.
+#   com.example.MyVariant
+# None ship with the game yet; a variant can also come in its own jar on the classpath.

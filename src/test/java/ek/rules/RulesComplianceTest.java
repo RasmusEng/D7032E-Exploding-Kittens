@@ -6,7 +6,7 @@ import ek.engine.RecordingListener;
 import ek.engine.ScriptedController;
 import ek.expansion.BaseGame;
 import ek.expansion.DeckFactory;
-import ek.expansion.FasterGame;
+import ek.expansion.TestOnlyVariant;
 import ek.model.Deck;
 import ek.model.Player;
 import ek.util.Randomizer;
@@ -91,15 +91,16 @@ class RulesComplianceTest {
     }
 
     @Test
-    void rule06_fasterVariant_removesAThirdBeforeTheKittens_stillOneFewerKittenThanPlayers() {
+    void rule06_variantRunsAfterDealingBeforeTheKittens_stillOneFewerKittenThanPlayers() {
         for (int n = 2; n <= 5; n++) {
             List<Player> players = players(n);
             Deck deck = new GameSetup(new DeckFactory(List.of(new BaseGame())), NO_SHUFFLE,
-                    List.of(new FasterGame())).setUp(players);
+                    List.of(new TestOnlyVariant())).setUp(players);
             int afterDeal = (n == 5 ? 47 : 48) - 7 * n;
-            int kept = afterDeal - afterDeal / 3;
-            assertEquals(kept + n - 1, deck.size(), n + " players");
+            // the variant removed one card, and the kittens were added after it
+            assertEquals(afterDeal - 1 + n - 1, deck.size(), n + " players");
             assertEquals(n - 1, deck.count(EXPLODING_KITTEN), n + " players");
+            players.forEach(p -> assertEquals(1 + 7, p.hand().size()));
         }
     }
 

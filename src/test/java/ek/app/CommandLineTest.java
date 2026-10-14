@@ -44,7 +44,7 @@ class CommandLineTest {
 
     @Test
     void shortcut_takesNoExpansionArguments() {
-        assertInstanceOf(CommandLine.Invalid.class, CommandLine.parse("server", "2", "1", "faster"));
+        assertInstanceOf(CommandLine.Invalid.class, CommandLine.parse("server", "2", "1", "some-expansion"));
     }
 
     @Test
