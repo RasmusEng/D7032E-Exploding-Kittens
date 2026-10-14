@@ -9,10 +9,12 @@ import java.util.Map;
 /**
  * A set of cards that can be put into the deck, with what they do when played or drawn.
  * The base game is one expansion; Imploding Kittens etc. would be others, added without
- * changing existing classes.
+ * changing existing classes: an optional expansion is found on the classpath through
+ * {@code META-INF/services/ek.expansion.Expansion} (see {@link ExpansionRegistry}), and
+ * {@link #order()} decides where it is applied.
  */
 @FunctionalInterface
-public interface Expansion {
+public interface Expansion extends GameOption {
 
     /**
      * Cards this expansion puts into the deck before the first hands are dealt.

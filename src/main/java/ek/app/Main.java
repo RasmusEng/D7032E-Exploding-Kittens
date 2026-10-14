@@ -22,6 +22,7 @@ import ek.net.ObjectStreamChannel;
 import ek.net.RemoteController;
 import ek.player.BotController;
 import ek.player.PlayerController;
+import ek.rules.GameConfig;
 import ek.rules.GameSetup;
 import ek.ui.ConsoleController;
 import ek.ui.ConsoleOutput;
@@ -76,13 +77,18 @@ public final class Main {
         if (args.length == 3 && args[0].equals("server")) {
             Integer humans = parseCount(args[1]);
             Integer bots = parseCount(args[2]);
-            if (humans == null || bots == null || humans < 1) {
+            if (humans == null || bots == null) {
                 exit(USAGE);
-            } else if (humans + bots < GameSetup.MIN_PLAYERS || humans + bots > GameSetup.MAX_PLAYERS) {
-                exit("Need " + GameSetup.MIN_PLAYERS + "-" + GameSetup.MAX_PLAYERS + " players in total.");
-            } else {
-                runServer(humans, bots);
+                return;
             }
+            GameConfig config;
+            try {
+                config = GameConfig.baseGame(humans, bots);
+            } catch (IllegalArgumentException e) {
+                exit(e.getMessage() + ".");
+                return;
+            }
+            runServer(config.humans(), config.bots());
         } else if (args.length == 2 && args[0].equals("client")) {
             runClient(args[1]);
         } else {
@@ -99,7 +105,7 @@ public final class Main {
         expansions.forEach(e -> effects.putAll(e.cardEffects())); // Loading all the expansions including the base game
         expansions.forEach(e -> drawEffects.putAll(e.drawEffects()));
         DeckFactory deckFactory = new DeckFactory(expansions);
-        List<CardType> nameable = List.copyOf(deckFactory.cardTypes(GameSetup.MAX_PLAYERS));
+        List<CardType> nameable = List.copyOf(deckFactory.cardTypes(deckFactory.playerRange().max()));
 
         Map<Player, PlayerController> controllers = new LinkedHashMap<>();
         List<GameEventListener> listeners = new ArrayList<>();

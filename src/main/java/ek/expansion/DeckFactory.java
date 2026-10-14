@@ -38,6 +38,11 @@ public final class DeckFactory {
         addAll(deck, afterDeal(playerCount));
     }
 
+    /** How many players a game with these expansions can have (rule 1). */
+    public PlayerRange playerRange() {
+        return PlayerRange.of(expansions);
+    }
+
     /** Every card type the expansions can put into the deck, e.g. to offer when naming a card. */
     public Set<CardType> cardTypes(int playerCount) {
         Set<CardType> types = new LinkedHashSet<>();
