@@ -1,6 +1,7 @@
 package ek.app;
 
 import ek.engine.GameEventListener;
+import ek.expansion.ExpansionRegistry;
 import ek.model.CardType;
 import ek.model.Player;
 import ek.net.GameClient;
@@ -11,6 +12,7 @@ import ek.player.BotController;
 import ek.player.PlayerController;
 import ek.rules.GameConfig;
 import ek.ui.ConsoleController;
+import ek.ui.ConsoleMenu;
 import ek.ui.ConsoleOutput;
 import ek.ui.ConsoleView;
 import ek.ui.Style;
@@ -45,25 +47,36 @@ public final class Main {
 
     public static void main(String[] args) {
         switch (CommandLine.parse(args)) {
-            case CommandLine.HostBaseGame host -> runServer(host.config());
+            case CommandLine.OpenMenu menu -> hostWithMenu();
+            case CommandLine.HostBaseGame host -> runServer(host.config(), consoleIn(), consoleOut());
             case CommandLine.Join join -> runClient(join.host());
-            case CommandLine.OpenMenu menu -> exit(CommandLine.USAGE);
             case CommandLine.Invalid invalid -> exit(invalid.message());
         }
     }
 
+    /**
+     * Lets the host choose the expansions, variants and players, then hosts the game. Only
+     * here is the registry used; everything below gets the chosen lists through the config.
+     */
+    private static void hostWithMenu() {
+        ExpansionRegistry registry = new ExpansionRegistry();
+        BufferedReader in = consoleIn();
+        ConsoleOutput console = consoleOut();
+        GameConfig config = new ConsoleMenu(in, console)
+                .ask(registry.optionalExpansions(), registry.variants(), registry.problems());
+        runServer(config, in, console);
+    }
+
     /** Hosts a game: this console is Player 1, the other humans connect as clients. */
-    private static void runServer(GameConfig config) {
+    private static void runServer(GameConfig config, BufferedReader in, ConsoleOutput console) {
         Randomizer randomizer = new JavaRandomizer();
         GameAssembler assembler = new GameAssembler(config, randomizer);
         List<CardType> nameable = assembler.nameableCards();
 
         Map<Player, PlayerController> controllers = new LinkedHashMap<>();
         List<GameEventListener> listeners = new ArrayList<>();
-        ConsoleOutput console = new ConsoleOutput(System.out, Style.detect(System.getenv()));
         Player host = new Player("Player 1");
-        controllers.put(host, new ConsoleController(
-                new BufferedReader(new InputStreamReader(System.in)), console, nameable));
+        controllers.put(host, new ConsoleController(in, console, nameable));
         List<RemoteController> remotes;
         try {
             remotes = acceptClients(config.humans() - 1, nameable);
@@ -113,8 +126,8 @@ public final class Main {
     private static void runClient(String host) {
         try (Socket socket = new Socket(host, GameServer.PORT)) {
             System.out.println("Connected to " + host + ". Waiting for the game to start...");
-            BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-            ConsoleOutput console = new ConsoleOutput(System.out, Style.detect(System.getenv()));
+            BufferedReader in = consoleIn();
+            ConsoleOutput console = consoleOut();
             String name = new GameClient(new ObjectStreamChannel(socket),
                     (me, nameable) -> new GameClient.Seat(new ConsoleController(in, console, nameable),
                             new ConsoleView(console, me, Sleeper.NONE)),
@@ -136,6 +149,15 @@ public final class Main {
         } catch (SocketException e) {
             System.out.println("  (could not list this computer's addresses: " + e.getMessage() + ")");
         }
+    }
+
+    /** Create once per run and share: a second reader on System.in could miss buffered input. */
+    private static BufferedReader consoleIn() {
+        return new BufferedReader(new InputStreamReader(System.in));
+    }
+
+    private static ConsoleOutput consoleOut() {
+        return new ConsoleOutput(System.out, Style.detect(System.getenv()));
     }
 
     private static void closeQuietly(RemoteController remote) {

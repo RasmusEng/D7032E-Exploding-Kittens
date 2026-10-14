@@ -3,6 +3,7 @@ package ek.rules;
 import ek.expansion.BaseGame;
 import ek.expansion.Expansion;
 import ek.expansion.OneKittenLessExpansion;
+import ek.expansion.PlayerRange;
 import ek.expansion.TestOnlyExpansion;
 import org.junit.jupiter.api.Test;
 
@@ -64,6 +65,12 @@ class GameConfigTest {
             assertSame(first, expansions.get(1));
             assertSame(second, expansions.get(2));
         }
+    }
+
+    @Test
+    void playerRange_forTheSelectedExpansions() {
+        assertEquals(new PlayerRange(2, 5), GameConfig.playerRange(List.of()));
+        assertEquals(new PlayerRange(2, 5), GameConfig.playerRange(List.of(new TestOnlyExpansion())));
     }
 
     @Test

@@ -43,16 +43,25 @@ public record GameConfig(int humans, int bots, List<Expansion> expansions, List<
 
     /** The base game plus the {@code selected} expansions, put in their fixed order. */
     public static GameConfig of(int humans, int bots, List<Expansion> selected, List<GameVariant> variants) {
-        List<Expansion> expansions = new ArrayList<>();
-        expansions.add(new BaseGame());
-        selected.stream().sorted(GameOption.BY_ORDER).forEach(expansions::add);
-        return new GameConfig(humans, bots, expansions,
+        return new GameConfig(humans, bots, withBaseGame(selected),
                 variants.stream().sorted(GameOption.BY_ORDER).toList());
+    }
+
+    /** How many players a game with the {@code selected} expansions (plus the base game) can have. */
+    public static PlayerRange playerRange(List<Expansion> selected) {
+        return PlayerRange.of(withBaseGame(selected));
     }
 
     /** The base game alone, without variants. */
     public static GameConfig baseGame(int humans, int bots) {
         return of(humans, bots, List.of(), List.of());
+    }
+
+    private static List<Expansion> withBaseGame(List<Expansion> selected) {
+        List<Expansion> expansions = new ArrayList<>();
+        expansions.add(new BaseGame());
+        selected.stream().sorted(GameOption.BY_ORDER).forEach(expansions::add);
+        return expansions;
     }
 
     /** Humans and bots together. */
