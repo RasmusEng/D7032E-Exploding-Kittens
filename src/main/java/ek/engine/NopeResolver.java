@@ -20,7 +20,7 @@ import static ek.model.BaseCardType.NOPE;
  * and is shown to every player. It opens even if nobody holds a Nope and can't be declined
  * or skipped, so how long the game waits never shows who holds one. Only a Nope ends it
  * early, and that opens a new full window on the Nope (Yup) for everyone but the player who
- * Noped. The play is cancelled when the number of Nopes is odd.
+ * Noped. The play is canceled when the number of Nopes is odd.
  *
  * <p><b>Thread-safety.</b> {@link #isCancelled} runs on the engine thread and is the only
  * code here that changes game state; who may Nope is decided there too, when the window
@@ -56,7 +56,7 @@ public final class NopeResolver {
     /**
      * Runs Nope windows until one runs out without a Nope. Played Nopes go to the discard pile.
      *
-     * @return {@code true} if the play is cancelled (odd number of Nopes)
+     * @return {@code true} if the play is canceled (odd number of Nopes)
      */
     public boolean isCancelled(GameContext ctx, Player actor, List<CardType> cards) {
         int nopes = 0;

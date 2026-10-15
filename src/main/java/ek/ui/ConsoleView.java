@@ -75,19 +75,19 @@ public final class ConsoleView implements GameEventListener {
         });
     }
 
-    /** How an event's line is coloured. Exhaustive over {@link GameEvent}. */
+    /** How an event's line is colored. Exhaustive over {@link GameEvent}. */
     static Tone tone(GameEvent event) {
         return switch (event) {
-            case GameEvent.TurnStarted e -> Tone.HEADER;
-            case GameEvent.NopePlayed e -> Tone.NOPE;
-            case GameEvent.PlayCancelled e -> Tone.NOPE;
-            case GameEvent.MoveRejected e -> Tone.DANGER;
-            case GameEvent.PlayerExploded e -> Tone.DANGER;
-            case GameEvent.KittenDefused e -> Tone.GOOD;
-            case GameEvent.Winner e -> Tone.GOOD;
-            case GameEvent.CardDrawn e -> Tone.MUTED;
-            case GameEvent.CardsPlayed e -> Tone.NORMAL;
-            case GameEvent.CardTaken e -> Tone.NORMAL;
+            case GameEvent.TurnStarted ignored -> Tone.HEADER;
+            case GameEvent.NopePlayed ignored -> Tone.NOPE;
+            case GameEvent.PlayCancelled ignored -> Tone.NOPE;
+            case GameEvent.MoveRejected ignored -> Tone.DANGER;
+            case GameEvent.PlayerExploded ignored -> Tone.DANGER;
+            case GameEvent.KittenDefused ignored -> Tone.GOOD;
+            case GameEvent.Winner ignored -> Tone.GOOD;
+            case GameEvent.CardDrawn ignored -> Tone.MUTED;
+            case GameEvent.CardsPlayed ignored -> Tone.NORMAL;
+            case GameEvent.CardTaken ignored -> Tone.NORMAL;
         };
     }
 

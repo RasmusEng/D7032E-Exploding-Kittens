@@ -3,7 +3,7 @@ package ek.model;
 import java.io.Serializable;
 
 /**
- * The kind of a card (e.g. Attack, Defuse).
+ * The kinda card (e.g. Attack, Defuse).
  * <p>An interface rather than a single enum so that expansions can contribute their own
  * card types (as their own enums) without modifying the base game (Open/Closed).
  */

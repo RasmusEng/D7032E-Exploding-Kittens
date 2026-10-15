@@ -30,7 +30,7 @@ public final class DeckFactory {
 
     /**
      * Rule 6: adds the cards the expansions put in after dealing, at the bottom (the deck is
-     * shuffled afterwards).
+     * shuffled afterward).
      *
      * @throws IllegalStateException if the expansions end with a negative count
      */

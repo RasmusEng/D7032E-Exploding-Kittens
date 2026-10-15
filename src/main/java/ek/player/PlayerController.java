@@ -49,7 +49,7 @@ public interface PlayerController {
 
     /**
      * A Nope window opened on someone else's play (rule 12). Offered to every player who
-     * didn't play last, whether or not they hold a Nope ({@link NopeOffer#canNope()}). May
+     * didn't play last, whether they hold a Nope ({@link NopeOffer#canNope()}). May
      * run on a separate thread. To Nope, call {@link NopeOffer#playNope()}, now or later
      * from another thread, while the window is open. The window always runs its full length
      * unless someone Nopes, so returning early doesn't speed the game up.

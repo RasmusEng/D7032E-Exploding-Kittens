@@ -3,8 +3,8 @@ package ek.ui;
 import java.util.Map;
 
 /**
- * How console text is coloured: {@link #ANSI} escape codes, or {@link #PLAIN} text for
- * terminals without colour and for tests. Chosen once in the composition root, so the
+ * How console text is colored: {@link #ANSI} escape codes, or {@link #PLAIN} text for
+ * terminals without color and for tests. Chosen once in the composition root, so the
  * rest of the UI never asks what kind of terminal it runs in.
  */
 public final class Style {
@@ -12,10 +12,10 @@ public final class Style {
     /** What a line means; each style decides how that looks. */
     public enum Tone { NORMAL, HEADER, MUTED, GOOD, DANGER, NOPE }
 
-    /** No escape codes at all: colours are dropped and the screen is never cleared. */
+    /** No escape codes at all: colors are dropped and the screen is never cleared. */
     public static final Style PLAIN = new Style(false);
 
-    /** ANSI colours, and the screen redrawn in place. */
+    /** ANSI colors, and the screen redrawn in place. */
     public static final Style ANSI = new Style(true);
 
     private static final String ESC = "\033[";
@@ -27,12 +27,12 @@ public final class Style {
         this.ansi = ansi;
     }
 
-    /** {@link #PLAIN} if the environment asks for no colour (NO_COLOR, or TERM=dumb), else {@link #ANSI}. */
+    /** {@link #PLAIN} if the environment asks for no color (NO_COLOR, or TERM=dumb), else {@link #ANSI}. */
     public static Style detect(Map<String, String> env) {
         return env.containsKey("NO_COLOR") || "dumb".equals(env.get("TERM")) ? PLAIN : ANSI;
     }
 
-    /** {@code text} in the colour of {@code tone}; unchanged in plain style. */
+    /** {@code text} in the color of {@code tone}; unchanged in plain style. */
     public String paint(String text, Tone tone) {
         if (!ansi || tone == Tone.NORMAL) {
             return text;
@@ -43,7 +43,7 @@ public final class Style {
             case GOOD -> "32";
             case DANGER -> "1;31";
             case NOPE -> "33";
-            case NORMAL -> "0";
+            case NORMAL -> "0"; // Unreachable
         };
         return ESC + code + "m" + text + RESET;
     }

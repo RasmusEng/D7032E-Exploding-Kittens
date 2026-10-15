@@ -66,10 +66,10 @@ public final class GameClient {
      * @throws IOException if the connection fails or the server breaks the protocol
      */
     public String run() throws IOException {
-        if (!(channel.receive() instanceof Message.Welcome welcome)) {
+        if (!(channel.receive() instanceof Message.Welcome(String name, List<CardType> nameableCards))) {
             throw new StreamCorruptedException("Expected a welcome message");
         }
-        Seat seat = seatFactory.create(welcome.name(), welcome.nameableCards());
+        Seat seat = seatFactory.create(name, nameableCards);
         controller = seat.controller();
         view = seat.view();
         try {
@@ -77,7 +77,7 @@ public final class GameClient {
                 handle(receive());
             }
         } catch (EOFException e) {
-            return welcome.name();     // the server closed the connection: the game is over
+            return name;     // the server closed the connection: the game is over
         } finally {
             offers.values().forEach(ClientNopeOffer::end);
         }

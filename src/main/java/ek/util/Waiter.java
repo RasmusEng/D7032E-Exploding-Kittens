@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
  * how long was asked for.
  */
 @FunctionalInterface
-public interface Waiter {
+public interface  Waiter {
 
     /** Really waits. */
     Waiter REAL = (signal, timeout) -> signal.await(timeout.toNanos(), TimeUnit.NANOSECONDS);

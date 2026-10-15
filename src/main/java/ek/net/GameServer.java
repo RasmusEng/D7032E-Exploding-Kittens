@@ -3,10 +3,7 @@ package ek.net;
 import ek.model.CardType;
 
 import java.io.IOException;
-import java.net.Inet4Address;
-import java.net.NetworkInterface;
-import java.net.ServerSocket;
-import java.net.SocketException;
+import java.net.*;
 import java.util.List;
 import java.util.concurrent.Executor;
 
@@ -48,7 +45,7 @@ public final class GameServer {
                 .filter(GameServer::isUsable)
                 .flatMap(NetworkInterface::inetAddresses)
                 .filter(address -> address instanceof Inet4Address && !address.isLoopbackAddress())
-                .map(address -> address.getHostAddress())
+                .map(InetAddress::getHostAddress)
                 .toList();
     }
 

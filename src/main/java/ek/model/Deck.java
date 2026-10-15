@@ -20,7 +20,7 @@ public final class Deck {
         cards.add(Objects.requireNonNull(card, "card"));
     }
 
-    public void addAll(Collection<Card> newCards) {
+    public void addAll(Collection<Card> newCards) { // never used
         newCards.forEach(this::addToBottom);
     }
 

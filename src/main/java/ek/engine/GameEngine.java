@@ -57,7 +57,7 @@ public final class GameEngine {
         while (state.turns().turnId() == turnId) {
             TurnAction action = context.controllerOf(actor).chooseAction(context.viewFor(actor));
             switch (action) {
-                case TurnAction.Pass pass -> drawAndEndTurn(actor);            // R9a
+                case TurnAction.Pass pass -> drawAndEndTurn(actor);            // R9a maybe change pass to ignore since its never used
                 case TurnAction.Play play -> play(actor, play.cards());         // R9b
             }
         }

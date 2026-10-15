@@ -11,7 +11,7 @@ import java.util.List;
  * The box drawn at the start of the viewer's turn: deck and opponents, the last events,
  * and the hand in two columns. Pure text: no I/O.
  *
- * <p>Every row is padded on plain text before it is painted, so colour codes never
+ * <p>Every row is padded on plain text before it is painted, so color codes never
  * change the box's width.
  */
 final class Dashboard {
