@@ -47,7 +47,7 @@ public final class GameSetup {
         if (!range.contains(playerCount)) {
             throw new IllegalArgumentException("Need " + range + " players, got " + playerCount);
         }
-        players.forEach(p -> p.hand().add(new Card(DEFUSE)));       // R2 every player will be delt a defuse card
+        players.forEach(p -> p.hand().add(new Card(DEFUSE))); // R2 every player will be delt a defuse card
         Deck deck = deckFactory.build(playerCount);                 // R3
         deck.shuffle(randomizer);                                   // R4
         deal(players, deck);                                        // R5

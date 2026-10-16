@@ -1,0 +1,169 @@
+@startuml
+skinparam packageStyle folder
+skinparam nodesep 20
+skinparam ranksep 30
+set namespaceSeparator none
+hide members
+
+package ek {
+  package ek.app {
+    interface CommandLine
+    class Main
+    class GameAssembler
+  }
+  package ek.ui {
+    class ConsoleController
+    class ConsoleView
+    class ConsoleMenu
+    class HandMenu
+    class ConsoleOutput
+    class Dashboard
+    class Style
+  }
+  package ek.net {
+    interface MessageChannel
+    interface Message
+    class GameServer
+    class ObjectStreamChannel
+    class RemoteController
+    class GameClient
+  }
+  package ek.player {
+    interface PlayerController
+    interface NopeWindow
+    interface TurnAction
+    class BotController
+    interface NopeOffer
+    interface HandChange
+    class GameView
+  }
+  package ek.rules {
+    class GameConfig
+    class GameSetup
+    class TurnState
+  }
+  package ek.expansion {
+    interface GameOption
+    interface Expansion
+    interface GameVariant
+    class BaseGame
+    class ExpansionRegistry
+    class DeckFactory
+    class PlayerRange
+  }
+  package ek.engine {
+    interface CardEffect
+    interface DrawEffect
+    interface GameEventListener
+    interface GameEvent
+    class GameEngine
+    class GameContext
+    class GameState
+    class PlayResolver
+    class NopeResolver
+    class InvalidMoveException
+  }
+  package ek.util {
+    interface Randomizer
+    interface Sleeper
+    interface Waiter
+    class JavaRandomizer
+  }
+  package ek.cards {
+    class AttackEffect
+    class SkipEffect
+    class ShuffleEffect
+    class FavorEffect
+    class SeeTheFutureEffect
+    class ExplodingKittenDraw
+  }
+  package ek.combos {
+    class TwoOfAKind
+    class ThreeOfAKind
+  }
+  package ek.model {
+    interface CardType
+    class Card
+    class Deck
+    enum BaseCardType
+    class DiscardPile
+    class Hand
+    class Player
+  }
+}
+
+' --- inheritance / implementation ---
+CardEffect <|.. AttackEffect
+CardEffect <|.. SkipEffect
+CardEffect <|.. ShuffleEffect
+CardEffect <|.. FavorEffect
+CardEffect <|.. SeeTheFutureEffect
+DrawEffect <|.. ExplodingKittenDraw
+CardEffect <|.. TwoOfAKind
+CardEffect <|.. ThreeOfAKind
+GameOption <|-- Expansion
+GameOption <|-- GameVariant
+Expansion <|.. BaseGame
+CardType <|.. BaseCardType
+MessageChannel <|.. ObjectStreamChannel
+PlayerController <|.. RemoteController
+PlayerController <|.. BotController
+PlayerController <|.. ConsoleController
+GameEventListener <|.. RemoteController
+GameEventListener <|.. ConsoleView
+NopeWindow <|-- NopeOffer
+Randomizer <|.. JavaRandomizer
+
+' --- invisible links: they only arrange the layout, nothing is drawn ---
+ConsoleController -[hidden]- HandMenu
+ConsoleView -[hidden]- ConsoleOutput
+ConsoleMenu -[hidden]- Dashboard
+HandMenu -[hidden]- Style
+MessageChannel -[hidden]- ObjectStreamChannel
+Message -[hidden]- RemoteController
+GameServer -[hidden]- GameClient
+PlayerController -[hidden]- BotController
+NopeWindow -[hidden]- NopeOffer
+TurnAction -[hidden]- HandChange
+BotController -[hidden]- GameView
+CardEffect -[hidden]- GameEvent
+DrawEffect -[hidden]- GameEngine
+GameEventListener -[hidden]- GameContext
+GameEvent -[hidden]- GameState
+GameEngine -[hidden]- PlayResolver
+GameContext -[hidden]- NopeResolver
+GameState -[hidden]- InvalidMoveException
+AttackEffect -[hidden]- FavorEffect
+SkipEffect -[hidden]- SeeTheFutureEffect
+ShuffleEffect -[hidden]- ExplodingKittenDraw
+GameOption -[hidden]- BaseGame
+Expansion -[hidden]- ExpansionRegistry
+GameVariant -[hidden]- DeckFactory
+BaseGame -[hidden]- PlayerRange
+CardType -[hidden]- BaseCardType
+Card -[hidden]- DiscardPile
+Deck -[hidden]- Hand
+BaseCardType -[hidden]- Player
+Randomizer -[hidden]- JavaRandomizer
+GameAssembler -[hidden]-- PlayerController
+GameAssembler -[hidden]-- GameConfig
+GameAssembler -[hidden]-- GameOption
+Style -[hidden]-- PlayerController
+Style -[hidden]-- GameConfig
+Style -[hidden]-- GameOption
+GameClient -[hidden]-- PlayerController
+GameClient -[hidden]-- GameConfig
+GameClient -[hidden]-- GameOption
+GameView -[hidden]-- CardEffect
+GameView -[hidden]-- Randomizer
+TurnState -[hidden]-- CardEffect
+TurnState -[hidden]-- Randomizer
+PlayerRange -[hidden]-- CardEffect
+PlayerRange -[hidden]-- Randomizer
+InvalidMoveException -[hidden]-- AttackEffect
+InvalidMoveException -[hidden]-- TwoOfAKind
+InvalidMoveException -[hidden]-- CardType
+JavaRandomizer -[hidden]-- AttackEffect
+JavaRandomizer -[hidden]-- TwoOfAKind
+JavaRandomizer -[hidden]-- CardType
+@enduml
