@@ -49,6 +49,63 @@ class DeckTest {
     }
 
     @Test
+    void cards_faceDownByDefault() {
+        Deck deck = deckOf(ATTACK, SKIP);
+        deck.insertAt(1, new Card(NOPE));
+        assertEquals(List.of(), deck.faceUpPositions());
+        assertFalse(deck.isFaceUp(Deck.Side.TOP));
+    }
+
+    @Test
+    void insertFaceUpAt_positionIsPublic() {
+        Deck deck = deckOf(ATTACK, SKIP, NOPE);
+        deck.insertFaceUpAt(2, new Card(EXPLODING_KITTEN));
+        assertEquals(List.of(2), deck.faceUpPositions());
+        assertEquals(EXPLODING_KITTEN, deck.peek(3).get(2).type(), "still a normal card");
+    }
+
+    @Test
+    void faceUpCard_survivesInsertAbove() {
+        Deck deck = deckOf(ATTACK, SKIP);
+        deck.insertFaceUpAt(1, new Card(EXPLODING_KITTEN));
+        deck.insertAt(0, new Card(NOPE));
+        assertEquals(List.of(2), deck.faceUpPositions());
+    }
+
+    @Test
+    void faceUpCard_survivesShuffle() {
+        Deck deck = deckOf(ATTACK, SKIP, NOPE, FAVOR);
+        deck.insertFaceUpAt(0, new Card(EXPLODING_KITTEN));
+        deck.shuffle(bound -> bound - 1 == 4 ? 0 : bound - 1);    // swaps only the top and bottom cards
+        assertEquals(List.of(4), deck.faceUpPositions());
+        assertEquals(EXPLODING_KITTEN, deck.drawBottom().type());
+    }
+
+    @Test
+    void faceUpCard_survivesReorder() {
+        Deck deck = deckOf(ATTACK, SKIP);
+        deck.insertFaceUpAt(0, new Card(EXPLODING_KITTEN));
+        deck.reorderTop(List.of(1, 2, 0));
+        assertEquals(List.of(2), deck.faceUpPositions());
+        assertTrue(deck.isFaceUp(Deck.Side.BOTTOM));
+    }
+
+    @Test
+    void isFaceUp_tellsTheCardAboutToBeDrawn() {
+        Deck deck = deckOf(ATTACK);
+        deck.insertFaceUpAt(0, new Card(EXPLODING_KITTEN));
+        assertTrue(deck.isFaceUp(Deck.Side.TOP));
+        assertFalse(deck.isFaceUp(Deck.Side.BOTTOM));
+        deck.draw();
+        assertEquals(List.of(), deck.faceUpPositions(), "the face-up card left with the draw");
+    }
+
+    @Test
+    void isFaceUp_emptyDeck_throws() {
+        assertThrows(IllegalStateException.class, () -> new Deck().isFaceUp(Deck.Side.TOP));
+    }
+
+    @Test
     void reorderTop_newTopIsTheChosenCards() {
         Deck deck = deckOf(SKIP, ATTACK, NOPE, TACO_CAT);
         deck.reorderTop(List.of(2, 0, 1));

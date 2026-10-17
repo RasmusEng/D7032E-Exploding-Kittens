@@ -63,7 +63,7 @@ class GameContextTest {
 
     @Test
     void drawAndEndTurn_drawEffectSaysOut_playMovesOnAndTurnsAreDropped() {
-        DrawEffect out = (ctx, actor, card) -> DrawEffect.Outcome.EXPLODED;
+        DrawEffect out = (ctx, actor, card, faceUp) -> DrawEffect.Outcome.EXPLODED;
         GameStateBuilder game = new GameStateBuilder()
                 .drawEffects(Map.of(TACO_CAT, out))
                 .player("Ann", ScriptedController.passing()).player("Bob", ScriptedController.passing())
@@ -76,6 +76,38 @@ class GameContextTest {
 
         assertEquals(2, game.state().turns().currentIndex());
         assertEquals(1, game.state().turns().turnsLeft());
+    }
+
+    @Test
+    void drawAndEndTurn_tellsTheDrawEffectWhetherTheCardWasFaceUp() {
+        List<Boolean> seen = new java.util.ArrayList<>();
+        DrawEffect record = (ctx, actor, card, faceUp) -> {
+            seen.add(faceUp);
+            return DrawEffect.Outcome.SURVIVED;
+        };
+        GameStateBuilder game = new GameStateBuilder()
+                .drawEffects(Map.of(TACO_CAT, record))
+                .player("Ann", ScriptedController.passing()).player("Bob", ScriptedController.passing())
+                .deck(TACO_CAT, TACO_CAT);
+        GameContext ctx = game.buildContext();
+        game.state().deck().insertFaceUpAt(0, new Card(TACO_CAT));
+
+        ctx.drawAndEndTurn(game.player(0), Deck.Side.TOP);
+        ctx.drawAndEndTurn(game.player(1), Deck.Side.BOTTOM);
+
+        assertEquals(List.of(true, false), seen);
+    }
+
+    @Test
+    void viewFor_everyoneSeesTheFaceUpPositions() {
+        GameStateBuilder game = new GameStateBuilder()
+                .player("Ann", ScriptedController.passing()).player("Bob", ScriptedController.passing())
+                .deck(SKIP, NOPE);
+        GameContext ctx = game.buildContext();
+        game.state().deck().insertFaceUpAt(1, new Card(EXPLODING_KITTEN));
+
+        assertEquals(List.of(1), ctx.viewFor(game.player(0)).faceUpPositions());
+        assertEquals(List.of(1), ctx.viewFor(game.player(1)).faceUpPositions());
     }
 
     @Test

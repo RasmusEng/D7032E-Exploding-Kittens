@@ -75,10 +75,11 @@ public final class GameContext {
      * the top; a card such as Draw from the Bottom calls this with the other side.
      */
     public void drawAndEndTurn(Player actor, Deck.Side side) {
+        boolean faceUp = state.deck().isFaceUp(side);
         Card card = state.deck().draw(side);
         publish(new GameEvent.CardDrawn(actor));
         DrawEffect effect = drawEffects.getOrDefault(card.type(), DrawEffect.KEEP);
-        switch (effect.apply(this, actor, card)) {
+        switch (effect.apply(this, actor, card, faceUp)) {
             case SURVIVED -> state.turns().endTurn(state.players());
             case EXPLODED -> state.turns().advance(state.players());
         }
@@ -134,7 +135,7 @@ public final class GameContext {
                 .map(GameContext::opponentView)
                 .toList();
         return new GameView(viewer.hand().cards(), opponents,
-                state.deck().size(), state.turns().turnsLeft());
+                state.deck().size(), state.turns().turnsLeft(), state.deck().faceUpPositions());
     }
 
     private static OpponentView opponentView(Player p) {

@@ -1,6 +1,7 @@
 package ek.fakeimploding;
 
 import ek.engine.CardEffect;
+import ek.engine.DrawEffect;
 import ek.expansion.Expansion;
 import ek.model.CardType;
 
@@ -67,6 +68,11 @@ public final class FakeImploding implements Expansion {
             cards.put(DEFUSE, 0);
         }
         return cards;
+    }
+
+    @Override
+    public Map<CardType, DrawEffect> drawEffects() {
+        return Map.of(FAKE_KITTEN, new FakeImplodingKittenDraw());
     }
 
     /** Like the Imploding Kitten, its kitten replaces one Exploding Kitten. */

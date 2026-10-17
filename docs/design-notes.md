@@ -481,3 +481,20 @@ registered with one services line) proves each one.
   the draw-and-end logic (DRY). `GameContext` is the effects' Facade, so the move keeps
   effects depending only on it, not on `GameEngine`. `Deck` gets `Side { TOP, BOTTOM }`,
   `draw(Side)` and `drawBottom()`. `draw()` stays, as dealing uses it.
+
+- **Face-up cards are a property of a deck position, not of the card (block 6).** `Deck`
+  stores `Slot(card, faceUp)` records. `shuffle`, `insertAt`/`insertFaceUpAt` and
+  `reorderTop` move whole slots, so the flag stays with its card. `Card` stays an immutable
+  value: two Imploding Kittens are the same card whether face up or not, and a face-up flag
+  on `Card` would leak into `Hand` and equality, where it means nothing. `isFaceUp(Side)`
+  tells which way up the next card is, and `GameContext.drawAndEndTurn` passes it to
+  `DrawEffect.apply(ctx, actor, card, faceUp)`. So the Imploding Kitten is one `DrawEffect`:
+  face down → put back face up, face up → out, Defuse ignored. The engine has no special case
+  (OCP). A plain `boolean` parameter instead of a `Drawn` record: it is the only fact to pass
+  (YAGNI). The cost was mechanical: `KEEP`, `ExplodingKittenDraw` and three test lambdas/calls.
+- **Decision: everyone sees where face-up cards are.** The rulebook says the Imploding
+  Kitten's white border lets everyone "see it coming". So `GameView.faceUpPositions` (0 = top)
+  is the same for every player, and the dashboard shows "Face up in the deck: 3rd from the
+  top". The view shows only positions, not which card: today only an Imploding Kitten is ever
+  face up, and the public event when it is put back (block 9) names it. A 4-argument
+  `GameView` constructor (no face-up cards) keeps existing callers compiling.

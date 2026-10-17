@@ -14,16 +14,23 @@ import ek.player.HandChange;
 @FunctionalInterface
 public interface DrawEffect {
 
-    /** Whether the player who drew survived; the engine moves the turn on accordingly. */
+    /**
+     * Whether the player who drew survived or is out of the game (exploded or otherwise);
+     * {@link GameContext#drawAndEndTurn} moves the turn on accordingly.
+     */
     enum Outcome { SURVIVED, EXPLODED }
 
     /** The default: the card goes into the hand, and only the drawer is told which card it was. */
-    DrawEffect KEEP = (ctx, actor, card) -> {
+    DrawEffect KEEP = (ctx, actor, card, faceUp) -> {
         actor.hand().add(card);
         ctx.controllerOf(actor).handChanged(new HandChange.Drawn(card));
         return Outcome.SURVIVED;
     };
 
-    /** Handles {@code card}, already taken from the deck and in no one's hand. */
-    Outcome apply(GameContext ctx, Player actor, Card card);
+    /**
+     * Handles {@code card}, already taken from the deck and in no one's hand.
+     *
+     * @param faceUp whether the card lay face up in the deck (an Imploding Kitten put back)
+     */
+    Outcome apply(GameContext ctx, Player actor, Card card, boolean faceUp);
 }

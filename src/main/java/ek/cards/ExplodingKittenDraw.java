@@ -15,7 +15,7 @@ import static ek.model.BaseCardType.DEFUSE;
 public final class ExplodingKittenDraw implements DrawEffect {
 
     @Override
-    public Outcome apply(GameContext ctx, Player actor, Card kitten) {
+    public Outcome apply(GameContext ctx, Player actor, Card kitten, boolean faceUp) {
         if (!actor.hand().contains(DEFUSE)) {
             ctx.explode(actor, kitten);                                         // R10b
             return Outcome.EXPLODED;
