@@ -419,3 +419,19 @@ One short entry per decision: what, and why.
   until one is needed (no speculative framework). Variants as `Expansion`s were rejected:
   `cardsAfterDeal` only edits counts and has no randomizer, so a deck-trimming variant
   couldn't be written as one.
+
+## Extension points for Imploding Kittens (`ek.expansion`, `ek.engine`, `ek.player`)
+
+Each mechanism below is generic and comes from an Imploding Kittens card or rule. None of
+the expansion itself is in `src/main`; a test-only fake (`ek.fakeimploding.FakeImploding`,
+registered with one services line) proves each one.
+
+- **Player limit and deck counts come from the expansions (block 1).** `Expansion.maxPlayers()`
+  defaults to the base game's 5, and `PlayerRange.of` takes the largest among the chosen
+  expansions (Imploding Kittens allows 6). The minimum stays 2. `deckCards` is now chained
+  like `cardsAfterDeal`: a default `deckCards(soFar, playerCount)` adds the expansion's own
+  `deckCards(playerCount)` to the counts so far. An expansion overrides it to change another's
+  counts (6 players: all 6 Defuse are dealt, so none go into the deck). One pattern for both
+  deck phases (consistency, least surprise). Default methods keep every existing expansion
+  and lambda compiling (OCP). `PlayerRange.of` stays the single source of truth (Booch:
+  cohesion), so the menu, `GameConfig` and `GameSetup` show and check the new range unchanged.

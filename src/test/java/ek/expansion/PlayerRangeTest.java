@@ -2,7 +2,10 @@ package ek.expansion;
 
 import org.junit.jupiter.api.Test;
 
+import ek.model.CardType;
+
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -11,6 +14,25 @@ class PlayerRangeTest {
     @Test
     void rule01_baseGame_twoToFive() {
         assertEquals(new PlayerRange(2, 5), PlayerRange.of(List.of(new BaseGame())));
+    }
+
+    @Test
+    void of_largestMaxPlayersAmongTheExpansionsWins() {
+        Expansion upToSeven = upTo(7);
+        Expansion upToSix = upTo(6);
+        assertEquals(new PlayerRange(2, 7), PlayerRange.of(List.of(new BaseGame(), upToSeven, upToSix)));
+    }
+
+    private static Expansion upTo(int max) {
+        return new Expansion() {
+            public Map<CardType, Integer> deckCards(int players) {
+                return Map.of();
+            }
+
+            public int maxPlayers() {
+                return max;
+            }
+        };
     }
 
     @Test

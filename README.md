@@ -53,7 +53,8 @@ The menu asks, in this order, for:
 3. the number of human players (including you; the others join as clients) and bots.
 
 Choose expansions and variants by number, separated by spaces, or press Enter for none.
-There must be 2–5 players in total; anything else is explained and asked again.
+There must be 2–5 players in total (an expansion may allow more; the menu shows the range
+for the chosen expansions); anything else is explained and asked again.
 
 Shortcut for the **base game only** (no menu; installed expansions and variants are not
 used, and can only be chosen in the menu):

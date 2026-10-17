@@ -4,3 +4,5 @@ ek.expansion.TestOnlyExpansion
 ek.expansion.BrokenExpansion
 ek.expansion.MissingExpansion
 ek.expansion.OneKittenLessExpansion
+# Test stand-in for Imploding Kittens: one line is all a new expansion needs.
+ek.fakeimploding.FakeImploding

@@ -256,7 +256,8 @@ captures the spec first, then fix the code until it passes.
 - [x] Expansion discovery: `ServiceLoader` inside `expansion.ExpansionRegistry` only, called only by `Main`;
       `BaseGame` is never looked up and always first, the rest are sorted by `GameOption.order()`;
       broken providers are skipped and shown in the menu. Registrations live in `src/*/resources/META-INF/services`
-- [x] Player limit: defined once in `expansion.PlayerRange.of(expansions)` (2–5 today)
+- [x] Player limit: defined once in `expansion.PlayerRange.of(expansions)`: 2 to the largest
+      `Expansion.maxPlayers()` (default 5, the base game's)
 - [x] Variants: structure only. `GameVariant.afterDeal` is the only hook (after dealing, before the kittens);
       no variant is implemented yet (e.g. "Faster game" would be one new class + a services line)
 - [x] Assembly: `app.GameAssembler` builds deck/effects/engine from a `GameConfig`; `Main` only does I/O wiring
