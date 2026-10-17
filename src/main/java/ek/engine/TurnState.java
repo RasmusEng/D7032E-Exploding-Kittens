@@ -61,27 +61,44 @@ public final class TurnState {
     }
 
     /**
-     * Rule 11a: ends all the current player's turns; the next player takes 2 turns.
+     * Rule 11a: ends all the current player's turns; {@code victim} takes 2 turns, and play
+     * goes on from them. Attack passes {@link #nextAlive}; Targeted Attack a chosen player.
      * If the current player was themselves attacked, their remaining turns are added
      * (2 → 4 → 6 when each victim attacks on their first turn).
+     *
+     * @throws IllegalArgumentException if {@code victim} is not an alive player in {@code players}
      */
-    public void attack(List<Player> players) {
+    public void attack(List<Player> players, Player victim) {
+        int victimIndex = players.indexOf(victim);
+        if (victimIndex < 0 || !victim.isAlive()) {
+            throw new IllegalArgumentException("Can't attack " + victim + ": not an alive player");
+        }
         int carried = underAttack ? turnsLeft : 0;
         turnId++;
-        moveToNextAlive(players, carried + ATTACK_TURNS);
+        currentIndex = victimIndex;
+        turnsLeft = carried + ATTACK_TURNS;
         underAttack = true;
     }
 
+    /** The next alive player in the direction of play (the current player if no one else is alive). */
+    public Player nextAlive(List<Player> players) {
+        return players.get(nextAliveIndex(players));
+    }
+
     private void moveToNextAlive(List<Player> players, int turns) {
+        currentIndex = nextAliveIndex(players);
+        turnsLeft = turns;
+        underAttack = false;
+    }
+
+    private int nextAliveIndex(List<Player> players) {
         for (int step = 1; step <= players.size(); step++) {
             int candidate = Math.floorMod(currentIndex + step * direction, players.size());
             if (players.get(candidate).isAlive()) {
-                currentIndex = candidate;
-                break;
+                return candidate;
             }
         }
-        turnsLeft = turns;
-        underAttack = false;
+        return currentIndex;
     }
 
     public int currentIndex() {

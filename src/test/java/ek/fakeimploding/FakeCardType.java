@@ -6,7 +6,8 @@ import ek.model.CardType;
 public enum FakeCardType implements CardType {
     FAKE_KITTEN("Fake Imploding Kitten"),
     FAKE_ALTER_THE_FUTURE("Fake Alter the Future"),
-    FAKE_REVERSE("Fake Reverse");
+    FAKE_REVERSE("Fake Reverse"),
+    FAKE_TARGETED_ATTACK("Fake Targeted Attack");
 
     private final String displayName;
 

@@ -460,3 +460,13 @@ registered with one services line) proves each one.
   it ends only one turn, as the rulebook says. `startAt` resets play to clockwise. Turn order
   stays in one class (SRP, Booch: cohesion), and cards combine two primitive operations
   instead of the engine getting a "reverse and skip" special case (primitiveness).
+
+- **Attack takes its victim (block 4).** `TurnState.attack(players, victim)` gives the victim
+  2 turns (plus the attacker's remaining turns if they were attacked themselves), and play
+  continues from the victim. `AttackEffect` passes `nextAlive(players)`, a new query that
+  shares the one direction-aware loop with `endTurn`. Targeted Attack would pass
+  `ctx.chooseTarget(actor)`. One stacking rule for both cards (DRY), and the existing Attack
+  behaviour and tests are unchanged. A dead or unknown victim is rejected (fail fast,
+  invariant kept in `TurnState`). The old `attack(players)` was removed rather than kept as an
+  overload, so there is one way to attack (Booch: primitiveness). `TurnStateTest`'s 5 calls
+  were updated mechanically through a helper, with the same assertions.

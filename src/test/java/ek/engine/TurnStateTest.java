@@ -11,6 +11,55 @@ class TurnStateTest {
 
     private final List<Player> players = List.of(new Player("A"), new Player("B"), new Player("C"));
 
+    /** What the Attack card does: the next player is the victim. */
+    private void attackNext(TurnState turns) {
+        turns.attack(players, turns.nextAlive(players));
+    }
+
+    @Test
+    void nextAlive_followsTheDirectionAndSkipsExplodedPlayers() {
+        TurnState turns = new TurnState();
+        turns.startAt(0);
+        assertSame(players.get(1), turns.nextAlive(players));
+        players.get(1).explode();
+        assertSame(players.get(2), turns.nextAlive(players));
+        turns.reverse();
+        assertSame(players.get(2), turns.nextAlive(players));
+        assertEquals(0, turns.currentIndex(), "only a query");
+    }
+
+    @Test
+    void targetedAttack_victimTakesTwoTurns_playContinuesFromThem() {
+        TurnState turns = new TurnState();
+        turns.startAt(0);
+        turns.attack(players, players.get(2));
+        assertEquals(2, turns.currentIndex());
+        assertEquals(2, turns.turnsLeft());
+        turns.endTurn(players);
+        turns.endTurn(players);
+        assertEquals(0, turns.currentIndex(), "continues clockwise from C, not from A");
+    }
+
+    @Test
+    void targetedAttack_onAttackedPlayer_stacks() {
+        TurnState turns = new TurnState();
+        turns.startAt(0);
+        attackNext(turns);                          // B: 2
+        turns.attack(players, players.get(0));      // A: 2 + 2
+        assertEquals(0, turns.currentIndex());
+        assertEquals(4, turns.turnsLeft());
+    }
+
+    @Test
+    void attack_explodedOrUnknownVictim_rejected() {
+        TurnState turns = new TurnState();
+        turns.startAt(0);
+        players.get(1).explode();
+        assertThrows(IllegalArgumentException.class, () -> turns.attack(players, players.get(1)));
+        assertThrows(IllegalArgumentException.class, () -> turns.attack(players, new Player("Z")));
+        assertEquals(0, turns.currentIndex());
+    }
+
     @Test
     void startAt_givesOneTurn() {
         TurnState turns = new TurnState();
@@ -49,7 +98,7 @@ class TurnStateTest {
     void attack_nextPlayerGetsTwoTurns() {
         TurnState turns = new TurnState();
         turns.startAt(0);
-        turns.attack(players);
+        attackNext(turns);
         assertEquals(1, turns.currentIndex());
         assertEquals(2, turns.turnsLeft());
     }
@@ -58,9 +107,9 @@ class TurnStateTest {
     void attack_onVictimsLastTurn_passesRemainingPlusTwo() {
         TurnState turns = new TurnState();
         turns.startAt(0);
-        turns.attack(players);          // B: 2
+        attackNext(turns);          // B: 2
         turns.endTurn(players);         // B: 1 left
-        turns.attack(players);          // C: 1 + 2
+        attackNext(turns);          // C: 1 + 2
         assertEquals(2, turns.currentIndex());
         assertEquals(3, turns.turnsLeft());
     }
@@ -69,10 +118,10 @@ class TurnStateTest {
     void attack_afterNormalTurn_doesNotStack() {
         TurnState turns = new TurnState();
         turns.startAt(0);
-        turns.attack(players);          // B: 2
+        attackNext(turns);          // B: 2
         turns.endTurn(players);
         turns.endTurn(players);         // C: normal turn
-        turns.attack(players);          // A: 2, not more
+        attackNext(turns);          // A: 2, not more
         assertEquals(2, turns.turnsLeft());
     }
 
@@ -134,7 +183,7 @@ class TurnStateTest {
         TurnState turns = new TurnState();
         turns.startAt(0);
         turns.reverse();
-        turns.attack(players);
+        attackNext(turns);
         assertEquals(2, turns.currentIndex());
         assertEquals(2, turns.turnsLeft());
     }
