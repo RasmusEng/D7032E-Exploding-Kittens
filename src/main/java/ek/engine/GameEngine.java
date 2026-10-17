@@ -70,11 +70,16 @@ public final class GameEngine {
         }
         cards.forEach(type -> state.discardPile().add(actor.hand().remove(type)));
         publish(new GameEvent.CardsPlayed(actor, cards));
-        if (nopeResolver.isCancelled(context, actor, cards)) {                 // R12
+        if (canBeNoped(cards) && nopeResolver.isCancelled(context, actor, cards)) {     // R12
             publish(new GameEvent.PlayCancelled(actor, cards));
             return;
         }
         effect.apply(context, actor);                                           // R11
+    }
+
+    /** A play is one action: one card that can't be Noped makes the whole play unstoppable. */
+    private static boolean canBeNoped(List<CardType> cards) {
+        return cards.stream().allMatch(CardType::canBeNoped);
     }
 
     private void publish(GameEvent event) {

@@ -498,3 +498,13 @@ registered with one services line) proves each one.
   top". The view shows only positions, not which card: today only an Imploding Kitten is ever
   face up, and the public event when it is put back (block 9) names it. A 4-argument
   `GameView` constructor (no face-up cards) keeps existing callers compiling.
+
+- **Whether a card can be Noped is a property of its type (block 7).** `CardType` gets
+  `default boolean canBeNoped()`, which is true. `GameEngine.play` opens the Nope window only
+  if every played card can be Noped: a play is one action, so one card that can't be stopped
+  makes the whole play (combos too) unstoppable. The Imploding Kitten says no. Draws never
+  open a window, so for it this documents the rule rather than changing behaviour. A played
+  card that can't be Noped (the fake's `FAKE_UNSTOPPABLE`) skips the window. The property sits
+  with the card instead of an `if (type == X)` in the engine (OCP, no special cases). No base
+  card is tagged: Defuse and Exploding Kitten are never played alone, and a *pair* of them is a
+  combo, which may be Noped. The base game is unchanged (`rule12_everyBaseCard_canBeNoped`).

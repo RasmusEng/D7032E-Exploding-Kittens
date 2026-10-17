@@ -14,4 +14,13 @@ public interface CardType extends Serializable {
 
     /** One-line rules text shown as help in views; like {@link #displayName()}, never used by game logic. */
     String description();
+
+    /**
+     * Whether a play with this card can be Noped (rule 12). Every base card can; an
+     * expansion's card can say no (the Imploding Kitten), and a play with such a card skips
+     * the Nope window. Draws never open one.
+     */
+    default boolean canBeNoped() {
+        return true;
+    }
 }
