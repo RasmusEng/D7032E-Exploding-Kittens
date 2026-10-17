@@ -71,6 +71,11 @@ public final class ConsoleView implements GameEventListener {
             case GameEvent.KittenDefused e -> name(e.player()) + " drew an Exploding Kitten and defused it!";
             case GameEvent.PlayerExploded e -> "BOOM! " + (isViewer(e.player())
                     ? "You exploded and are out." : e.player() + " exploded and is out.");
+            case GameEvent.DirectionReversed e -> name(e.player()) + " reversed the direction of play.";
+            case GameEvent.CardPutBackFaceUp e -> name(e.player()) + " put the " + e.card().displayName()
+                    + " back into the deck face up.";
+            case GameEvent.PlayerEliminated e -> (isViewer(e.player()) ? "You are" : e.player() + " is")
+                    + " out of the game (" + e.cause().displayName() + ").";
             case GameEvent.Winner e -> isViewer(e.player()) ? "You win the game!" : e.player() + " wins the game!";
         });
     }
@@ -83,11 +88,14 @@ public final class ConsoleView implements GameEventListener {
             case GameEvent.PlayCancelled ignored -> Tone.NOPE;
             case GameEvent.MoveRejected ignored -> Tone.DANGER;
             case GameEvent.PlayerExploded ignored -> Tone.DANGER;
+            case GameEvent.PlayerEliminated ignored -> Tone.DANGER;
+            case GameEvent.CardPutBackFaceUp ignored -> Tone.DANGER;
             case GameEvent.KittenDefused ignored -> Tone.GOOD;
             case GameEvent.Winner ignored -> Tone.GOOD;
             case GameEvent.CardDrawn ignored -> Tone.MUTED;
             case GameEvent.CardsPlayed ignored -> Tone.NORMAL;
             case GameEvent.CardTaken ignored -> Tone.NORMAL;
+            case GameEvent.DirectionReversed ignored -> Tone.NORMAL;
         };
     }
 
@@ -109,6 +117,9 @@ public final class ConsoleView implements GameEventListener {
             case GameEvent.CardTaken e -> !isViewer(e.to());
             case GameEvent.KittenDefused e -> !isViewer(e.player());
             case GameEvent.PlayerExploded e -> !isViewer(e.player());
+            case GameEvent.PlayerEliminated e -> !isViewer(e.player());
+            case GameEvent.DirectionReversed e -> !isViewer(e.player());
+            case GameEvent.CardPutBackFaceUp e -> !isViewer(e.player());
             default -> false;
         };
     }

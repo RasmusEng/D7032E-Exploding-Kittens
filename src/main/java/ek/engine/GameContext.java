@@ -103,9 +103,34 @@ public final class GameContext {
 
     /** R10b: {@code actor} discards their hand and {@code kitten}, and is out of the game. */
     public void explode(Player actor, Card kitten) {
-        state.discardPile().addAll(actor.explode());
-        state.discardPile().add(kitten);
+        knockOut(actor, kitten);
         publish(new GameEvent.PlayerExploded(actor));
+    }
+
+    /**
+     * Like {@link #explode}, for a card other than an Exploding Kitten (an Imploding Kitten):
+     * {@code actor} discards their hand and {@code cause}, is out, and everyone is told why.
+     */
+    public void eliminate(Player actor, Card cause) {
+        knockOut(actor, cause);
+        publish(new GameEvent.PlayerEliminated(actor, cause.type()));
+    }
+
+    /** Reverses the direction of play (Reverse) and tells everyone; doesn't end the turn. */
+    public void reverseDirection(Player actor) {
+        state.turns().reverse();
+        publish(new GameEvent.DirectionReversed(actor));
+    }
+
+    /** Asks {@code actor} where to put {@code card} back, puts it there face up, and tells everyone which card. */
+    public void putBackFaceUp(Player actor, Card card) {
+        state.deck().insertFaceUpAt(chooseDeckPosition(actor), card);
+        publish(new GameEvent.CardPutBackFaceUp(actor, card.type()));
+    }
+
+    private void knockOut(Player actor, Card cause) {
+        state.discardPile().addAll(actor.explode());
+        state.discardPile().add(cause);
     }
 
     /** Asks {@code actor} until they make a choice that {@code choice} accepts. */

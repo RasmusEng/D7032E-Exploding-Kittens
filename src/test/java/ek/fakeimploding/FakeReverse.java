@@ -9,7 +9,7 @@ public final class FakeReverse implements CardEffect {
 
     @Override
     public void apply(GameContext ctx, Player actor) {
-        ctx.state().turns().reverse();
+        ctx.reverseDirection(actor);
         ctx.state().turns().endTurn(ctx.state().players());
     }
 }

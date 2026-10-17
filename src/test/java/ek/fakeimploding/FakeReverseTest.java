@@ -34,6 +34,7 @@ class FakeReverseTest {
         // like SkipEffectTest: A ends the turn without drawing, so B draws the kitten
         assertEquals(game.player(0), game.buildEngine().run());
         assertEquals(1, listener.eventsOf(GameEvent.CardDrawn.class).size());
+        assertEquals(List.of(new GameEvent.DirectionReversed("A")), listener.eventsOf(GameEvent.DirectionReversed.class));
     }
 
     @Test

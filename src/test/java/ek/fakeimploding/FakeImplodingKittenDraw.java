@@ -14,10 +14,10 @@ public final class FakeImplodingKittenDraw implements DrawEffect {
     @Override
     public Outcome apply(GameContext ctx, Player actor, Card kitten, boolean faceUp) {
         if (faceUp) {
-            ctx.explode(actor, kitten);
+            ctx.eliminate(actor, kitten);
             return Outcome.EXPLODED;
         }
-        ctx.state().deck().insertFaceUpAt(ctx.chooseDeckPosition(actor), kitten);
+        ctx.putBackFaceUp(actor, kitten);
         return Outcome.SURVIVED;
     }
 }

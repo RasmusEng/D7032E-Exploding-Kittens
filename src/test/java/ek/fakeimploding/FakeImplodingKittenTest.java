@@ -1,7 +1,9 @@
 package ek.fakeimploding;
 
 import ek.engine.GameContext;
+import ek.engine.GameEvent;
 import ek.engine.GameStateBuilder;
+import ek.engine.RecordingListener;
 import ek.engine.ScriptedController;
 import ek.model.Card;
 import ek.model.Deck;
@@ -16,18 +18,23 @@ import static org.junit.jupiter.api.Assertions.*;
 /** The Imploding Kitten through face-up cards in the deck and {@code DrawEffect}'s face-up flag. */
 class FakeImplodingKittenTest {
 
+    private final RecordingListener listener = new RecordingListener();
+
     @Test
     void faceUpKitten_drawnFaceDown_goesBackFaceUp_andEveryoneSeesWhere() {
         ScriptedController ann = ScriptedController.passing(1);       // 2nd from the top
         GameStateBuilder game = new GameStateBuilder()
                 .expansion(new FakeImploding())
                 .player("Ann", ann, SKIP).player("Bob", ScriptedController.passing())
-                .deck(FAKE_KITTEN, SKIP, EXPLODING_KITTEN);
+                .deck(FAKE_KITTEN, SKIP, EXPLODING_KITTEN)
+                .listener(listener);
         GameContext ctx = game.buildContext();
 
         ctx.drawAndEndTurn(game.player(0), Deck.Side.TOP);
 
         assertTrue(game.player(0).isAlive(), "no Defuse needed");
+        assertEquals(List.of(new GameEvent.CardPutBackFaceUp("Ann", FAKE_KITTEN)),
+                listener.eventsOf(GameEvent.CardPutBackFaceUp.class));
         assertEquals(List.of(new Card(SKIP), new Card(FAKE_KITTEN), new Card(EXPLODING_KITTEN)),
                 game.state().deck().peek(3));
         assertEquals(List.of(1), game.state().deck().faceUpPositions());
@@ -42,13 +49,17 @@ class FakeImplodingKittenTest {
                 .expansion(new FakeImploding())
                 .player("Ann", ann, DEFUSE).player("Bob", ScriptedController.passing())
                 .player("Cid", ScriptedController.passing())
-                .deck(SKIP);
+                .deck(SKIP)
+                .listener(listener);
         GameContext ctx = game.buildContext();
         game.state().deck().insertFaceUpAt(0, new Card(FAKE_KITTEN));
 
         ctx.drawAndEndTurn(game.player(0), Deck.Side.TOP);
 
         assertFalse(game.player(0).isAlive());
+        assertEquals(List.of(new GameEvent.PlayerEliminated("Ann", FAKE_KITTEN)),
+                listener.eventsOf(GameEvent.PlayerEliminated.class));
+        assertTrue(listener.eventsOf(GameEvent.PlayerExploded.class).isEmpty(), "not an Exploding Kitten");
         assertEquals(0, ann.positionRequests(), "a Defuse doesn't help");
         assertEquals(2, game.state().discardPile().size(), "the hand and the kitten");
         assertEquals(1, game.state().turns().currentIndex());

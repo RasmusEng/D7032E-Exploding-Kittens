@@ -111,6 +111,50 @@ class GameContextTest {
     }
 
     @Test
+    void reverseDirection_reversesPlay_andTellsEveryone() {
+        RecordingListener listener = new RecordingListener();
+        GameStateBuilder game = new GameStateBuilder()
+                .player("Ann", ScriptedController.passing()).player("Bob", ScriptedController.passing())
+                .listener(listener);
+        GameContext ctx = game.buildContext();
+
+        ctx.reverseDirection(game.player(0));
+
+        assertFalse(game.state().turns().isClockwise());
+        assertEquals(List.of(new GameEvent.DirectionReversed("Ann")), listener.events());
+    }
+
+    @Test
+    void putBackFaceUp_atTheChosenPosition_andTellsEveryoneWhichCard() {
+        RecordingListener listener = new RecordingListener();
+        GameStateBuilder game = new GameStateBuilder()
+                .player("Ann", ScriptedController.passing(2)).player("Bob", ScriptedController.passing())
+                .deck(SKIP, NOPE)
+                .listener(listener);
+        GameContext ctx = game.buildContext();
+
+        ctx.putBackFaceUp(game.player(0), new Card(EXPLODING_KITTEN));
+
+        assertEquals(List.of(2), game.state().deck().faceUpPositions());
+        assertEquals(List.of(new GameEvent.CardPutBackFaceUp("Ann", EXPLODING_KITTEN)), listener.events());
+    }
+
+    @Test
+    void eliminate_discardsHandAndCause_andTellsEveryoneWhy() {
+        RecordingListener listener = new RecordingListener();
+        GameStateBuilder game = new GameStateBuilder()
+                .player("Ann", ScriptedController.passing(), DEFUSE, SKIP).player("Bob", ScriptedController.passing())
+                .listener(listener);
+        GameContext ctx = game.buildContext();
+
+        ctx.eliminate(game.player(0), new Card(TACO_CAT));
+
+        assertFalse(game.player(0).isAlive());
+        assertEquals(3, game.state().discardPile().size());
+        assertEquals(List.of(new GameEvent.PlayerEliminated("Ann", TACO_CAT)), listener.events());
+    }
+
+    @Test
     void askUntil_asksUntilTheAnswerIsValid() {
         AtomicInteger next = new AtomicInteger();
         assertEquals(3, GameContext.askUntil(next::incrementAndGet, n -> n >= 3));

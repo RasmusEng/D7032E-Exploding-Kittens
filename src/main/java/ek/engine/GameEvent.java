@@ -86,6 +86,30 @@ public sealed interface GameEvent extends Serializable {
         }
     }
 
+    /** Play now goes the other way round the table (Reverse). */
+    record DirectionReversed(String player) implements GameEvent {
+        public DirectionReversed(Player player) {
+            this(player.name());
+        }
+    }
+
+    /**
+     * A card went back into the deck face up (an Imploding Kitten). Which card it is, is
+     * public: everyone can see it; where it lies is in every {@code GameView}.
+     */
+    record CardPutBackFaceUp(String player, CardType card) implements GameEvent {
+        public CardPutBackFaceUp(Player player, CardType card) {
+            this(player.name(), card);
+        }
+    }
+
+    /** A player is out of the game because of a card other than an Exploding Kitten (an Imploding Kitten). */
+    record PlayerEliminated(String player, CardType cause) implements GameEvent {
+        public PlayerEliminated(Player player, CardType cause) {
+            this(player.name(), cause);
+        }
+    }
+
     /** The last player alive (rule 13). */
     record Winner(String player) implements GameEvent {
         public Winner(Player player) {

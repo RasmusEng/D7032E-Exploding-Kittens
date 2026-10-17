@@ -521,3 +521,18 @@ registered with one services line) proves each one.
   is just a new card type, and `PlayResolver` doesn't change (OCP, Information Expert). The
   random bot still only offers same-type combos; that is a subset of the legal plays, so it
   stays correct.
+
+- **Core events for the new mechanics, published by `GameContext` helpers (block 9).**
+  `GameEvent` is sealed (so `ConsoleView`'s switches are checked for completeness), so an
+  expansion can't add its own event. The engine therefore gets three generic ones:
+  `DirectionReversed`, `CardPutBackFaceUp(player, card)` and `PlayerEliminated(player, cause)`,
+  the generic "out of the game" for non-Exploding kittens; `PlayerExploded` stays for rule 10b.
+  Each is published by the `GameContext` helper that makes the change: `reverseDirection`,
+  `putBackFaceUp` (asks the position, inserts face up) and `eliminate` (shares the discard
+  logic with `explode`). An effect then can't change the state and forget the event, and the
+  helpers are the extension API for these mechanics (Facade, DRY). The events name players
+  and hold only public facts: a face-up card's type is visible to all, and the cause of
+  elimination is the face-up card that was drawn. `ConsoleView` renders all three. Trade-off
+  of the sealed interface: a future mechanic that needs a new event changes `GameEvent` and
+  `ConsoleView`. That is accepted for compile-time completeness, and the events are generic,
+  so they serve more than one card.
