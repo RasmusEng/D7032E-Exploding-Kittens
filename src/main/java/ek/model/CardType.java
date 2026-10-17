@@ -23,4 +23,17 @@ public interface CardType extends Serializable {
     default boolean canBeNoped() {
         return true;
     }
+
+    /** Whether this is a Cat Card (the five base cats; an expansion's cats too). No effect on its own. */
+    default boolean isCat() {
+        return false;
+    }
+
+    /**
+     * Whether this card may stand in for {@code other} in a combo (rules 11f, g), as a Feral
+     * Cat counts as any Cat Card ({@code other.isCat()}). No base card is a wildcard.
+     */
+    default boolean substitutesFor(CardType other) {
+        return false;
+    }
 }

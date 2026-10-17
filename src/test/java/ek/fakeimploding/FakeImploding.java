@@ -10,6 +10,7 @@ import java.util.Map;
 
 import static ek.fakeimploding.FakeCardType.FAKE_ALTER_THE_FUTURE;
 import static ek.fakeimploding.FakeCardType.FAKE_DRAW_FROM_THE_BOTTOM;
+import static ek.fakeimploding.FakeCardType.FAKE_FERAL_CAT;
 import static ek.fakeimploding.FakeCardType.FAKE_KITTEN;
 import static ek.fakeimploding.FakeCardType.FAKE_REVERSE;
 import static ek.fakeimploding.FakeCardType.FAKE_TARGETED_ATTACK;
@@ -49,7 +50,7 @@ public final class FakeImploding implements Expansion {
     @Override
     public Map<CardType, Integer> deckCards(int playerCount) {
         return Map.of(FAKE_ALTER_THE_FUTURE, 2, FAKE_REVERSE, 2, FAKE_TARGETED_ATTACK, 2,
-                FAKE_DRAW_FROM_THE_BOTTOM, 2, FAKE_UNSTOPPABLE, 2);
+                FAKE_DRAW_FROM_THE_BOTTOM, 2, FAKE_UNSTOPPABLE, 2, FAKE_FERAL_CAT, 2);
     }
 
     @Override

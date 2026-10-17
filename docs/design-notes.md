@@ -508,3 +508,16 @@ registered with one services line) proves each one.
   with the card instead of an `if (type == X)` in the engine (OCP, no special cases). No base
   card is tagged: Defuse and Exploding Kitten are never played alone, and a *pair* of them is a
   combo, which may be Noped. The base game is unchanged (`rule12_everyBaseCard_canBeNoped`).
+
+- **Combo categories and wildcards live on the card type (block 8).** `CardType` gets
+  `default isCat()` (the five base cats say yes) and `default substitutesFor(other)` (no base
+  card does). A Feral Cat would return `other.isCat()`. `PlayResolver` accepts 2 or 3 cards
+  when some played type is matched by every card, either as that type or as a stand-in for it.
+  Each type's count is then checked against the hand. Base behaviour is unchanged: identical
+  cards form a combo, and two different cats or a single cat are rejected. A Feral Cat alone
+  has no `CardEffect`, so it is rejected like any cat. **Why polymorphism rather than an
+  injected `ComboMatcher`:** a matcher per expansion would need a rule for combining several
+  matchers when two expansions are active. With the method on the card type, a new wildcard
+  is just a new card type, and `PlayResolver` doesn't change (OCP, Information Expert). The
+  random bot still only offers same-type combos; that is a subset of the legal plays, so it
+  stays correct.

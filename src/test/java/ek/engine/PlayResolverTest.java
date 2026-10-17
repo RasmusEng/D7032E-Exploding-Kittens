@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static ek.fakeimploding.FakeCardType.FAKE_FERAL_CAT;
 import static ek.model.BaseCardType.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -42,6 +43,44 @@ class PlayResolverTest {
     void cardWithoutEffect_aloneIsRejected() {
         assertThrows(InvalidMoveException.class, () -> resolver.resolve(List.of(TACO_CAT), hand(TACO_CAT)));
         assertThrows(InvalidMoveException.class, () -> resolver.resolve(List.of(DEFUSE), hand(DEFUSE)));
+    }
+
+    @Test
+    void wildcard_matchesCatCategoryInPair() throws InvalidMoveException {
+        assertSame(pair, resolver.resolve(List.of(FAKE_FERAL_CAT, TACO_CAT), hand(FAKE_FERAL_CAT, TACO_CAT)));
+        assertSame(pair, resolver.resolve(List.of(CATTERMELON, FAKE_FERAL_CAT), hand(CATTERMELON, FAKE_FERAL_CAT)));
+        assertSame(pair, resolver.resolve(List.of(FAKE_FERAL_CAT, FAKE_FERAL_CAT),
+                hand(FAKE_FERAL_CAT, FAKE_FERAL_CAT)));
+    }
+
+    @Test
+    void wildcard_inThreeOfAKind() throws InvalidMoveException {
+        assertSame(triple, resolver.resolve(List.of(FAKE_FERAL_CAT, TACO_CAT, TACO_CAT),
+                hand(TACO_CAT, FAKE_FERAL_CAT, TACO_CAT)));
+        assertSame(triple, resolver.resolve(List.of(FAKE_FERAL_CAT, FAKE_FERAL_CAT, TACO_CAT),
+                hand(FAKE_FERAL_CAT, TACO_CAT, FAKE_FERAL_CAT)));
+    }
+
+    @Test
+    void wildcard_withNonCat_rejected() {
+        assertThrows(InvalidMoveException.class,
+                () -> resolver.resolve(List.of(FAKE_FERAL_CAT, ATTACK), hand(FAKE_FERAL_CAT, ATTACK)));
+        assertThrows(InvalidMoveException.class,
+                () -> resolver.resolve(List.of(FAKE_FERAL_CAT, TACO_CAT, CATTERMELON),
+                        hand(FAKE_FERAL_CAT, TACO_CAT, CATTERMELON)));
+    }
+
+    @Test
+    void wildcardAlone_rejected() {
+        assertThrows(InvalidMoveException.class, () -> resolver.resolve(List.of(FAKE_FERAL_CAT), hand(FAKE_FERAL_CAT)));
+    }
+
+    @Test
+    void wildcardPair_needsBothCardsInHand() {
+        assertThrows(InvalidMoveException.class,
+                () -> resolver.resolve(List.of(FAKE_FERAL_CAT, TACO_CAT), hand(FAKE_FERAL_CAT, CATTERMELON)));
+        assertThrows(InvalidMoveException.class,
+                () -> resolver.resolve(List.of(FAKE_FERAL_CAT, FAKE_FERAL_CAT), hand(FAKE_FERAL_CAT, TACO_CAT)));
     }
 
     @Test
