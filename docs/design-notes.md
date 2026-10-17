@@ -435,3 +435,19 @@ registered with one services line) proves each one.
   deck phases (consistency, least surprise). Default methods keep every existing expansion
   and lambda compiling (OCP). `PlayerRange.of` stays the single source of truth (Booch:
   cohesion), so the menu, `GameConfig` and `GameSetup` show and check the new range unchanged.
+
+- **One generic card decision instead of a method per card (block 2).**
+  `PlayerController.chooseCards(view, CardChoice)` picks `picks` of the `options`, in order:
+  all of them is an ordering (Alter the Future), fewer is a selection (Garbage Collection,
+  Potluck). The answer is a list of indexes, like the other index-returning methods. Without
+  this, each card would add a method in four places (interface, console, remote, bot) plus a
+  message pair. With it, a card adds none (OCP for the controllers and the protocol). New
+  expansion decisions must reuse it. `CardChoice` is a serializable value that checks its own
+  answers (`accepts`, Information Expert). `GameContext.chooseCards` asks again until the
+  answer is accepted (generalised `askInRange` into `askUntil`), so a buggy or hostile client
+  can't put the game in a bad state. The console checks input too, at the boundary. `prompt`
+  is display text only, never parsed, so the client still relies on no keywords (req 17).
+  One message pair (`ChooseCards`/`CardsChosen`) serves every such decision.
+  `Deck.reorderTop` applies an ordering and rejects anything that isn't a permutation.
+  Trade-off: the interface is less specific than one method per card (ISP), but a card's
+  meaning sits in its prompt, and the type safety that matters (valid indexes) is checked.

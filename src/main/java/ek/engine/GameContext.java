@@ -2,6 +2,7 @@ package ek.engine;
 
 import ek.model.Card;
 import ek.model.Player;
+import ek.player.CardChoice;
 import ek.player.GameView;
 import ek.player.GameView.OpponentView;
 import ek.player.HandChange;
@@ -12,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * What a card effect may use: the game state, the players' controllers, randomness and
@@ -83,12 +86,23 @@ public final class GameContext {
         publish(new GameEvent.PlayerExploded(actor));
     }
 
+    /** Asks {@code actor} until they make a choice that {@code choice} accepts. */
+    public List<Integer> chooseCards(Player actor, CardChoice choice) {
+        PlayerController controller = controllerOf(actor);
+        return askUntil(() -> controller.chooseCards(viewFor(actor), choice), choice::accepts);
+    }
+
     /** Asks until the answer is in {@code min..max} (inclusive). */
     public static int askInRange(IntSupplier ask, int min, int max) {
-        int answer;
+        return askUntil(ask::getAsInt, answer -> answer >= min && answer <= max);
+    }
+
+    /** Asks until {@code valid} accepts the answer. */
+    public static <T> T askUntil(Supplier<T> ask, Predicate<T> valid) {
+        T answer;
         do {
-            answer = ask.getAsInt();
-        } while (answer < min || answer > max);
+            answer = ask.get();
+        } while (!valid.test(answer));
         return answer;
     }
 

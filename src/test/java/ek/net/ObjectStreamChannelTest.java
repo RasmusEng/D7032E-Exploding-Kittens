@@ -3,6 +3,7 @@ package ek.net;
 import ek.engine.GameEvent;
 import ek.model.BaseCardType;
 import ek.model.Card;
+import ek.player.CardChoice;
 import ek.player.GameView;
 import ek.player.GameView.OpponentView;
 import ek.player.TurnAction;
@@ -39,6 +40,8 @@ class ObjectStreamChannelTest {
                 new Message.ChooseTarget(VIEW, VIEW.opponents()),
                 new Message.ChooseCardToGive(VIEW, "Bob"),
                 new Message.NameCard(VIEW),
+                new Message.ChooseCards(VIEW, CardChoice.orderOf("Order", List.of(new Card(SKIP), new Card(NOPE)))),
+                new Message.CardsChosen(List.of(1, 0)),
                 new Message.GameStarted(VIEW),
                 new Message.SeeTheFuture(List.of(new Card(EXPLODING_KITTEN), new Card(SKIP))),
                 new Message.OfferNope(7, VIEW, "Bob", List.of(ATTACK), 1, 5000, true),

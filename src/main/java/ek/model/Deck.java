@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.IntStream;
 
 /**
  * The draw pile. Index 0 is the top of the deck.
@@ -58,6 +59,24 @@ public final class Deck {
                     "Index " + index + " outside 0.." + cards.size());
         }
         cards.add(index, card);
+    }
+
+    /**
+     * Puts the top {@code order.size()} cards in a new order: the card at position
+     * {@code order.get(i)} becomes position {@code i} (Alter the Future).
+     *
+     * @throws IllegalArgumentException if {@code order} is not a reordering of {@code 0..order.size()-1}
+     *                                  within the deck; the deck is then unchanged
+     */
+    public void reorderTop(List<Integer> order) {
+        int n = order.size();
+        if (n > cards.size() || !order.stream().sorted().toList().equals(IntStream.range(0, n).boxed().toList())) {
+            throw new IllegalArgumentException("Not a reordering of the top " + n + " cards: " + order);
+        }
+        List<Card> top = List.copyOf(cards.subList(0, n));
+        for (int i = 0; i < n; i++) {
+            cards.set(i, top.get(order.get(i)));
+        }
     }
 
     /** Shuffles the deck uniformly (Fisher–Yates) using the given randomizer. */

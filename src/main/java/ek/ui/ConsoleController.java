@@ -2,6 +2,7 @@ package ek.ui;
 
 import ek.model.Card;
 import ek.model.CardType;
+import ek.player.CardChoice;
 import ek.player.GameView;
 import ek.player.GameView.OpponentView;
 import ek.player.HandChange;
@@ -16,6 +17,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -110,6 +112,21 @@ public final class ConsoleController implements PlayerController {
         out.updateBoard(board(view, new HandMenu(view.hand())));
         printNumbered("Name a card to ask for:", nameableCards.stream().map(CardType::displayName).toList());
         return nameableCards.get(askNumber("Card number: ", 1, nameableCards.size()) - 1);
+    }
+
+    @Override
+    public List<Integer> chooseCards(GameView view, CardChoice choice) {
+        out.updateBoard(board(view, new HandMenu(view.hand())));
+        printNumbered(choice.prompt(), choice.options().stream().map(Card::toString).toList());
+        String prompt = choice.picks() == 1 ? "Card number: " : "Card numbers, in order: ";
+        while (true) {
+            Optional<List<Integer>> picked = parseNumbers(ask(prompt))
+                    .map(numbers -> numbers.stream().map(n -> n - 1).toList());
+            if (picked.isPresent() && choice.accepts(picked.get())) {
+                return picked.get();
+            }
+            out.println("Enter " + choice.picks() + " different numbers from 1 to " + choice.options().size() + ".");
+        }
     }
 
     @Override
@@ -304,6 +321,19 @@ public final class ConsoleController implements PlayerController {
             throw new IllegalStateException("Console input closed");
         }
         return line;
+    }
+
+    /** Numbers separated by spaces and/or commas; empty if any part is not a number. */
+    static Optional<List<Integer>> parseNumbers(String s) {
+        List<Integer> numbers = new ArrayList<>();
+        for (String part : s.trim().split("[\\s,]+")) {
+            Optional<Integer> n = parseInt(part);
+            if (n.isEmpty()) {
+                return Optional.empty();
+            }
+            numbers.add(n.get());
+        }
+        return Optional.of(numbers);
     }
 
     static Optional<Integer> parseInt(String s) {

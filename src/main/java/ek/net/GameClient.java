@@ -95,6 +95,8 @@ public final class GameClient {
             case Message.ChooseCardToGive r -> channel.send(
                     new Message.NumberChosen(controller.chooseCardToGive(r.view(), r.requester())));
             case Message.NameCard r -> channel.send(new Message.CardNamed(controller.nameCard(r.view())));
+            case Message.ChooseCards r -> channel.send(
+                    new Message.CardsChosen(controller.chooseCards(r.view(), r.choice())));
             case Message.SeeTheFuture s -> controller.seeTheFuture(s.topCards());
             case Message.GameStarted g -> controller.gameStarted(g.view());
             case Message.HandChanged h -> controller.handChanged(h.change());

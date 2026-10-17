@@ -4,7 +4,8 @@ import ek.model.CardType;
 
 /** The fake expansion's cards: tiny stand-ins for the Imploding Kittens cards. */
 public enum FakeCardType implements CardType {
-    FAKE_KITTEN("Fake Imploding Kitten");
+    FAKE_KITTEN("Fake Imploding Kitten"),
+    FAKE_ALTER_THE_FUTURE("Fake Alter the Future");
 
     private final String displayName;
 

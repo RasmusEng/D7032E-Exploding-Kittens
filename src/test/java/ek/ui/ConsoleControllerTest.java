@@ -2,6 +2,7 @@ package ek.ui;
 
 import ek.model.Card;
 import ek.model.CardType;
+import ek.player.CardChoice;
 import ek.player.GameView;
 import ek.player.GameView.OpponentView;
 import ek.player.HandChange;
@@ -232,6 +233,23 @@ class ConsoleControllerTest {
     @Test
     void nameCard_picksFromList() {
         assertEquals(NOPE, controller("2\n").nameCard(view()));
+    }
+
+    @Test
+    void chooseCards_oneBasedNumbersInOrder_zeroBasedIndexes() {
+        CardChoice choice = CardChoice.orderOf("New order, top first:",
+                List.of(new Card(SKIP), new Card(ATTACK), new Card(NOPE)));
+        assertEquals(List.of(2, 0, 1), controller("3 1 2\n").chooseCards(view(), choice));
+        assertTrue(printed().contains("New order, top first:"), printed());
+        assertTrue(printed().contains("2) Attack"), printed());
+    }
+
+    @Test
+    void chooseCards_invalidInput_askedAgain() {
+        CardChoice choice = CardChoice.orderOf("Order", List.of(new Card(SKIP), new Card(ATTACK)));
+        // not numbers, a duplicate, too few, out of range, then valid (commas allowed)
+        assertEquals(List.of(1, 0), controller("x y\n1 1\n1\n1 3\n2, 1\n").chooseCards(view(), choice));
+        assertEquals(4, printed().split("Enter 2 different numbers from 1 to 2", -1).length - 1);
     }
 
     @Test

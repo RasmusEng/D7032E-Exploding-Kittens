@@ -3,6 +3,7 @@ package ek.net;
 import ek.engine.GameEvent;
 import ek.model.Card;
 import ek.model.CardType;
+import ek.player.CardChoice;
 import ek.player.GameView;
 import ek.player.GameView.OpponentView;
 import ek.player.HandChange;
@@ -73,6 +74,14 @@ public sealed interface Message extends Serializable {
     record NameCard(GameView view) implements ToClient {
         public NameCard {
             Objects.requireNonNull(view, "view");
+        }
+    }
+
+    /** Any choice about cards (e.g. Alter the Future); answered with {@link CardsChosen}. */
+    record ChooseCards(GameView view, CardChoice choice) implements ToClient {
+        public ChooseCards {
+            Objects.requireNonNull(view, "view");
+            Objects.requireNonNull(choice, "choice");
         }
     }
 
@@ -152,6 +161,13 @@ public sealed interface Message extends Serializable {
     record CardNamed(CardType type) implements ToServer {
         public CardNamed {
             Objects.requireNonNull(type, "type");
+        }
+    }
+
+    /** Answer to {@link ChooseCards}: indexes into its options, in the chosen order. */
+    record CardsChosen(List<Integer> indexes) implements ToServer {
+        public CardsChosen {
+            indexes = List.copyOf(indexes);
         }
     }
 

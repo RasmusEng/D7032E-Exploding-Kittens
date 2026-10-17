@@ -30,6 +30,22 @@ class DeckTest {
     }
 
     @Test
+    void reorderTop_newTopIsTheChosenCards() {
+        Deck deck = deckOf(SKIP, ATTACK, NOPE, TACO_CAT);
+        deck.reorderTop(List.of(2, 0, 1));
+        assertEquals(List.of(new Card(NOPE), new Card(SKIP), new Card(ATTACK), new Card(TACO_CAT)), deck.peek(4));
+    }
+
+    @Test
+    void reorderTop_notAPermutation_throwsAndKeepsTheDeck() {
+        Deck deck = deckOf(SKIP, ATTACK, NOPE);
+        assertThrows(IllegalArgumentException.class, () -> deck.reorderTop(List.of(0, 0, 1)));
+        assertThrows(IllegalArgumentException.class, () -> deck.reorderTop(List.of(1, 2)));
+        assertThrows(IllegalArgumentException.class, () -> deck.reorderTop(List.of(0, 1, 2, 3)));
+        assertEquals(List.of(new Card(SKIP), new Card(ATTACK), new Card(NOPE)), deck.peek(3));
+    }
+
+    @Test
     void peek_returnsTopCardsWithoutRemoving() {
         Deck deck = deckOf(ATTACK, SKIP, FAVOR, NOPE, SHUFFLE);
         assertEquals(List.of(new Card(ATTACK), new Card(SKIP), new Card(FAVOR)), deck.peek(3));

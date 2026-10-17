@@ -2,6 +2,7 @@ package ek.engine;
 
 import ek.model.Card;
 import ek.model.CardType;
+import ek.player.CardChoice;
 import ek.player.GameView;
 import ek.player.GameView.OpponentView;
 import ek.player.HandChange;
@@ -30,6 +31,8 @@ public final class ScriptedController implements PlayerController {
     private final Deque<Integer> targets = new ArrayDeque<>();
     private final Deque<Integer> gifts = new ArrayDeque<>();
     private final Deque<CardType> namedCards = new ArrayDeque<>();
+    private final Deque<List<Integer>> cardAnswers = new ArrayDeque<>();
+    private final List<CardChoice> cardChoices = new ArrayList<>();
     private final List<List<Card>> futuresSeen = new ArrayList<>();
     private final List<GameView> actionViews = new ArrayList<>();
     private final List<GameView> startViews = new ArrayList<>();
@@ -76,6 +79,13 @@ public final class ScriptedController implements PlayerController {
     /** Answers to "name a card". */
     public ScriptedController names(CardType... types) {
         namedCards.addAll(List.of(types));
+        return this;
+    }
+
+    /** Answers to card choices (e.g. Alter the Future), as index lists into the options. */
+    @SafeVarargs
+    public final ScriptedController chooses(List<Integer>... answers) {
+        cardAnswers.addAll(List.of(answers));
         return this;
     }
 
@@ -126,6 +136,12 @@ public final class ScriptedController implements PlayerController {
     }
 
     @Override
+    public List<Integer> chooseCards(GameView view, CardChoice choice) {
+        cardChoices.add(choice);
+        return next(cardAnswers, "card choices");
+    }
+
+    @Override
     public void seeTheFuture(List<Card> topCards) {
         futuresSeen.add(topCards);
     }
@@ -171,6 +187,11 @@ public final class ScriptedController implements PlayerController {
 
     public List<List<Card>> futuresSeen() {
         return futuresSeen;
+    }
+
+    /** Every card choice asked, in order, including ones asked again. */
+    public List<CardChoice> cardChoices() {
+        return cardChoices;
     }
 
     /** Every private hand change this player was told about, in order. */

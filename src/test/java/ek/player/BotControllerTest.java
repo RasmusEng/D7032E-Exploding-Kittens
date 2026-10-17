@@ -85,6 +85,18 @@ class zBotControllerTest {
     }
 
     @Test
+    void chooseCards_alwaysAcceptedByTheChoice() {
+        List<Card> options = List.of(new Card(SKIP), new Card(NOPE), new Card(ATTACK), new Card(FAVOR));
+        CardChoice order = CardChoice.orderOf("Order", options);
+        CardChoice two = new CardChoice("Pick two", options, 2);
+        for (long seed = 0; seed < 100; seed++) {
+            BotController bot = bot(seed);
+            assertTrue(order.accepts(bot.chooseCards(view(), order)));
+            assertTrue(two.accepts(bot.chooseCards(view(), two)));
+        }
+    }
+
+    @Test
     void rule16_gameWithOnlyBots_endsWithOneWinner() {
         for (int n = 2; n <= 5; n++) {
             JavaRandomizer randomizer = new JavaRandomizer(new Random(7 + n));

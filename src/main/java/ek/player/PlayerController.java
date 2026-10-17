@@ -44,6 +44,16 @@ public interface PlayerController {
     /** Names the card type to ask for with three of a kind. */
     CardType nameCard(GameView view);
 
+    /**
+     * Makes a choice about cards for an expansion's card, e.g. the new order of the top 3
+     * cards (Alter the Future). This is the one method for such decisions: a new card
+     * describes its choice in a {@link CardChoice} instead of adding a method here.
+     *
+     * @return {@code choice.picks()} different indexes into {@code choice.options()}, in the
+     *         chosen order; asked again by the engine if {@link CardChoice#accepts} says no
+     */
+    List<Integer> chooseCards(GameView view, CardChoice choice);
+
     /** Shows the top cards of the deck, top first (See The Future); private to this player. */
     void seeTheFuture(List<Card> topCards);
 
