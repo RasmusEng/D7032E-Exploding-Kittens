@@ -114,7 +114,7 @@ A separately compiled expansion jar is picked up by putting it on the classpath:
 # compile the expansion against the game, add its registration, and package it
 javac --release 21 -cp out/classes -d my-expansion/classes $(find my-expansion/src -name '*.java')
 mkdir -p my-expansion/classes/META-INF/services
-echo com.example.MyExpansion > my-expansion/classes/META-INF/services/ek.expansion.Expansion
+echo ek.myexpansion.MyExpansion > my-expansion/classes/META-INF/services/ek.expansion.Expansion
 mkdir -p expansions
 jar --create --file expansions/my-expansion.jar -C my-expansion/classes .
 
@@ -124,6 +124,8 @@ java -cp "out/classes:expansions/*" ek.app.Main server
 
 The menu then lists it by the `name()` and `description()` it gives itself. Clients don't
 need the jar for the menu, but they must have it on their classpath for its card types to
-reach them over the network. A provider that can't be loaded is skipped, and the menu shows
-which one and why.
+reach them over the network. An expansion must live in an `ek.` package (such as
+`ek.myexpansion`): the network only accepts classes under `ek.`, so card types from another
+package would be rejected when sent to a client. A provider that can't be loaded is skipped,
+and the menu shows which one and why.
 

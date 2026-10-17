@@ -1,5 +1,7 @@
 # Optional expansions found by ek.expansion.ExpansionRegistry and offered in the setup menu.
 # Register one class implementing ek.expansion.Expansion per line, e.g.
-#   com.example.ImplodingKittens
+#   ek.imploding.ImplodingKittens
+# Expansions must live in an ek. package: only ek.** classes may cross the network
+# (ek.net.ObjectStreamChannel.FILTER), and their card types are sent to the clients.
 # The base game is always included and must not be listed. An expansion can also come in
 # its own jar on the classpath with its own META-INF/services file.

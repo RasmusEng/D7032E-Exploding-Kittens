@@ -13,6 +13,10 @@ import java.util.Map;
  * changing existing classes: an optional expansion is found on the classpath through
  * {@code META-INF/services/ek.expansion.Expansion} (see {@link ExpansionRegistry}), and
  * {@link #order()} decides where it is applied.
+ *
+ * <p>An expansion and its card types must live in an {@code ek.} package (e.g.
+ * {@code ek.imploding}): the network only accepts {@code ek.} classes, and card types are
+ * sent to the clients.
  */
 @FunctionalInterface
 public interface Expansion extends GameOption {

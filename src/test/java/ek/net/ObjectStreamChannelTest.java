@@ -1,6 +1,8 @@
 package ek.net;
 
+import com.example.OutsideCardType;
 import ek.engine.GameEvent;
+import ek.fakeimploding.FakeCardType;
 import ek.model.BaseCardType;
 import ek.model.Card;
 import ek.player.CardChoice;
@@ -63,6 +65,28 @@ class ObjectStreamChannelTest {
                 assertEquals(message, channel.receive());
             }
         }
+    }
+
+    @Test
+    void expansionCardTypes_inTheirOwnEkPackage_crossTheWire() throws IOException {
+        List<Message> messages = List.of(
+                new Message.Welcome("Ann", List.of(FakeCardType.values())),
+                new Message.Event(new GameEvent.CardsPlayed("Bob", List.of(FakeCardType.FAKE_FERAL_CAT, TACO_CAT))),
+                new Message.Event(new GameEvent.PlayerEliminated("Bob", FakeCardType.FAKE_KITTEN)));
+        try (ObjectStreamChannel channel = selfConnected()) {
+            for (Message message : messages) {
+                channel.send(message);
+                assertEquals(message, channel.receive());
+            }
+        }
+    }
+
+    @Test
+    void cardTypeOutsideEk_isRejected() throws IOException {
+        // the documented rule: expansions live under ek. (see ObjectStreamChannel.FILTER)
+        ObjectStreamChannel channel = reading(new Message.Welcome("Ann", List.of(OutsideCardType.OUTSIDER)));
+
+        assertThrows(InvalidClassException.class, channel::receive);
     }
 
     @Test

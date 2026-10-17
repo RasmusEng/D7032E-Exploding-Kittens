@@ -22,7 +22,11 @@ import java.net.Socket;
  */
 public final class ObjectStreamChannel implements MessageChannel {
 
-    /** Classes allowed on the wire: game types, records' JDK parts, and immutable lists. */
+    /**
+     * Classes allowed on the wire: game types, records' JDK parts, and immutable lists.
+     * "Game types" means everything under {@code ek.}, so an expansion's card types must live
+     * in an {@code ek.} package (e.g. {@code ek.imploding}) to reach the clients.
+     */
     static final ObjectInputFilter FILTER = ObjectInputFilter.Config.createFilter(
             "maxdepth=20;maxarray=1000;maxrefs=10000;ek.**;java.lang.*;java.util.*;!*");
 

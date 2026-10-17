@@ -536,3 +536,18 @@ registered with one services line) proves each one.
   of the sealed interface: a future mechanic that needs a new event changes `GameEvent` and
   `ConsoleView`. That is accepted for compile-time completeness, and the events are generic,
   so they serve more than one card.
+
+- **Network: expansions live under `ek.` (option A).** `ObjectStreamChannel.FILTER` only lets
+  `ek.**` classes (plus basic JDK types) be read, so a hostile peer can't make us create
+  arbitrary classes. Expansion card types travel in `Welcome`, events and views, so they must
+  pass the filter. **Chosen:** document the rule (services file, `Expansion` Javadoc,
+  `FILTER` Javadoc, README) and lock it with two tests: the fake's cards from the new
+  `ek.fakeimploding` package cross the wire, and a `com.example` card type is rejected. The
+  examples that said `com.example.…` were fixed, as they would have failed over the network.
+  **Rejected for now, option B:** build the filter from the installed expansions' packages
+  (`Main` asks the registry on both server and client and passes plain package names to the
+  channel). `net` would still not depend on `expansion`, so requirement 17 holds either way.
+  B costs a constructor parameter and client-side wiring, and only pays off for third-party
+  packages. A needs no code at all. **Trade-off:** A ties expansion authors to our namespace,
+  which is acceptable while every expansion is written for this game. B is the upgrade path,
+  local to `ObjectStreamChannel` and `Main`.
