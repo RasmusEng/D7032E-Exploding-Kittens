@@ -451,3 +451,12 @@ registered with one services line) proves each one.
   `Deck.reorderTop` applies an ordering and rejects anything that isn't a permutation.
   Trade-off: the interface is less specific than one method per card (ISP), but a card's
   meaning sits in its prompt, and the type safety that matters (valid indexes) is checked.
+
+- **Turn direction lives in `TurnState` (block 3).** `TurnState` keeps a direction (+1 seat
+  order, −1 the other way). `reverse()` flips it and `isClockwise()` reads it. The one loop
+  that finds the next alive player steps that way, so `endTurn`, `advance` and `attack` all
+  follow it with no other change. `reverse()` doesn't end the turn: a Reverse card calls
+  `reverse()` then `endTurn()`. With 2 players that is the same as a Skip, and under Attack
+  it ends only one turn, as the rulebook says. `startAt` resets play to clockwise. Turn order
+  stays in one class (SRP, Booch: cohesion), and cards combine two primitive operations
+  instead of the engine getting a "reverse and skip" special case (primitiveness).

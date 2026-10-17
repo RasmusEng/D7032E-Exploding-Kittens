@@ -3,6 +3,7 @@ package ek.engine;
 import ek.combos.ThreeOfAKind;
 import ek.combos.TwoOfAKind;
 import ek.expansion.BaseGame;
+import ek.expansion.Expansion;
 import ek.model.Card;
 import ek.model.CardType;
 import ek.model.Deck;
@@ -31,6 +32,7 @@ public final class GameStateBuilder {
     private Integer startIndex;
     private NopeResolver nopeResolver = instantNopeResolver();
     private Map<CardType, DrawEffect> drawEffects = baseDrawEffects();
+    private final Map<CardType, CardEffect> cardEffects = new LinkedHashMap<>(new BaseGame().cardEffects());
     private GameState state;
 
     /** The base game's play rules: base card effects plus both combos. */
@@ -56,6 +58,15 @@ public final class GameStateBuilder {
     /** What drawing each card type does, instead of the base game's. */
     public GameStateBuilder drawEffects(Map<CardType, DrawEffect> drawEffects) {
         this.drawEffects = drawEffects;
+        return this;
+    }
+
+    /** Adds an expansion's card and draw effects over the base game's, in call order, like {@code GameAssembler}. */
+    public GameStateBuilder expansion(Expansion expansion) {
+        cardEffects.putAll(expansion.cardEffects());
+        Map<CardType, DrawEffect> draws = new LinkedHashMap<>(drawEffects);
+        draws.putAll(expansion.drawEffects());
+        drawEffects = draws;
         return this;
     }
 
@@ -98,7 +109,8 @@ public final class GameStateBuilder {
     public GameEngine buildEngine() {
         state = new GameState(players, deck, new DiscardPile());
         Randomizer engineRandomizer = startIndex == null ? randomizer : startFirst(startIndex, randomizer);
-        return new GameEngine(state, controllers, basePlayResolver(), drawEffects, nopeResolver,
+        return new GameEngine(state, controllers,
+                new PlayResolver(cardEffects, new TwoOfAKind(), new ThreeOfAKind()), drawEffects, nopeResolver,
                 engineRandomizer, listeners);
     }
 

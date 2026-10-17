@@ -9,6 +9,7 @@ import java.util.Map;
 
 import static ek.fakeimploding.FakeCardType.FAKE_ALTER_THE_FUTURE;
 import static ek.fakeimploding.FakeCardType.FAKE_KITTEN;
+import static ek.fakeimploding.FakeCardType.FAKE_REVERSE;
 import static ek.model.BaseCardType.DEFUSE;
 import static ek.model.BaseCardType.EXPLODING_KITTEN;
 
@@ -43,12 +44,14 @@ public final class FakeImploding implements Expansion {
 
     @Override
     public Map<CardType, Integer> deckCards(int playerCount) {
-        return Map.of(FAKE_ALTER_THE_FUTURE, 2);
+        return Map.of(FAKE_ALTER_THE_FUTURE, 2, FAKE_REVERSE, 2);
     }
 
     @Override
     public Map<CardType, CardEffect> cardEffects() {
-        return Map.of(FAKE_ALTER_THE_FUTURE, new FakeAlterTheFuture());
+        return Map.of(
+                FAKE_ALTER_THE_FUTURE, new FakeAlterTheFuture(),
+                FAKE_REVERSE, new FakeReverse());
     }
 
     /** With 6 players every Defuse is dealt, so none go into the deck. */
