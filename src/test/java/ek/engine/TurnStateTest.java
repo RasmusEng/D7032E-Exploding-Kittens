@@ -1,4 +1,4 @@
-package ek.rules;
+package ek.engine;
 
 import ek.model.Player;
 import org.junit.jupiter.api.Test;

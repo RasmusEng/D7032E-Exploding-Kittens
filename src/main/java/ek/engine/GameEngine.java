@@ -5,7 +5,6 @@ import ek.model.CardType;
 import ek.model.Player;
 import ek.player.PlayerController;
 import ek.player.TurnAction;
-import ek.rules.TurnState;
 import ek.util.Randomizer;
 
 import java.util.List;

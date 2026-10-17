@@ -82,12 +82,12 @@ ek/
 ├── app/          Main (composition root, the only place with `new` for services and the only ExpansionRegistry user),
 │                 CommandLine (argument parsing), GameAssembler (GameConfig → deck, effects, engine)
 ├── model/        Card, CardType, Deck, Hand, Player, DiscardPile          — pure data + invariants
-├── rules/        GameSetup, TurnState, GameConfig                          — rule logic, no I/O
+├── rules/        GameSetup, GameConfig                                     — rule logic, no I/O
 ├── cards/        one CardEffect implementation per card                    — Attack, Skip, Favor, ...
 ├── combos/       ComboEffect: TwoOfAKind, ThreeOfAKind
 ├── expansion/    GameOption, Expansion, GameVariant (interfaces), BaseGame, DeckFactory,
 │                 PlayerRange, ExpansionRegistry (ServiceLoader)            — card sets, variants + deck setup
-├── engine/       GameEngine, GameState, GameContext, CardEffect (interface), PlayResolver, NopeResolver, GameEvent — orchestrates a game
+├── engine/       GameEngine, GameState, TurnState, GameContext, CardEffect (interface), PlayResolver, NopeResolver, GameEvent — orchestrates a game
 ├── player/       PlayerController (interface), BotController, GameView, TurnAction (ConsoleController in ui/, RemoteController in net/)
 ├── net/          Message (typed protocol), MessageChannel, ObjectStreamChannel, RemoteController, GameClient, GameServer — transport only
 ├── ui/           ConsoleView, ConsoleController, ConsoleMenu, Dashboard    — rendering & input parsing

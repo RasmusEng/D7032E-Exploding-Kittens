@@ -3,7 +3,6 @@ package ek.engine;
 import ek.model.Deck;
 import ek.model.DiscardPile;
 import ek.model.Player;
-import ek.rules.TurnState;
 
 import java.util.List;
 
