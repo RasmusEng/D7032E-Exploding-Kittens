@@ -1,8 +1,11 @@
 package ek.net;
 
+import com.example.OutsideCardType;
 import ek.engine.GameEvent;
+import ek.fakeimploding.FakeCardType;
 import ek.model.BaseCardType;
 import ek.model.Card;
+import ek.player.CardChoice;
 import ek.player.GameView;
 import ek.player.GameView.OpponentView;
 import ek.player.TurnAction;
@@ -34,12 +37,18 @@ class ObjectStreamChannelTest {
                 new Message.Welcome("Ann", List.of(BaseCardType.values())),
                 new Message.Event(new GameEvent.CardsPlayed("Bob", List.of(TACO_CAT, TACO_CAT))),
                 new Message.Event(new GameEvent.Winner("Ann")),
+                new Message.Event(new GameEvent.DirectionReversed("Bob")),
+                new Message.Event(new GameEvent.CardPutBackFaceUp("Bob", EXPLODING_KITTEN)),
+                new Message.Event(new GameEvent.PlayerEliminated("Bob", EXPLODING_KITTEN)),
                 new Message.ChooseAction(VIEW),
                 new Message.ChooseKittenPosition(VIEW, 20),
                 new Message.ChooseTarget(VIEW, VIEW.opponents()),
                 new Message.ChooseCardToGive(VIEW, "Bob"),
                 new Message.NameCard(VIEW),
+                new Message.ChooseCards(VIEW, CardChoice.orderOf("Order", List.of(new Card(SKIP), new Card(NOPE)))),
+                new Message.CardsChosen(List.of(1, 0)),
                 new Message.GameStarted(VIEW),
+                new Message.GameStarted(new GameView(List.of(), List.of(), 9, 1, List.of(0, 4))),
                 new Message.SeeTheFuture(List.of(new Card(EXPLODING_KITTEN), new Card(SKIP))),
                 new Message.OfferNope(7, VIEW, "Bob", List.of(ATTACK), 1, 5000, true),
                 new Message.WatchNopeWindow(8, VIEW, "Ann", List.of(ATTACK), 0, 5000),
@@ -56,6 +65,28 @@ class ObjectStreamChannelTest {
                 assertEquals(message, channel.receive());
             }
         }
+    }
+
+    @Test
+    void expansionCardTypes_inTheirOwnEkPackage_crossTheWire() throws IOException {
+        List<Message> messages = List.of(
+                new Message.Welcome("Ann", List.of(FakeCardType.values())),
+                new Message.Event(new GameEvent.CardsPlayed("Bob", List.of(FakeCardType.FAKE_FERAL_CAT, TACO_CAT))),
+                new Message.Event(new GameEvent.PlayerEliminated("Bob", FakeCardType.FAKE_KITTEN)));
+        try (ObjectStreamChannel channel = selfConnected()) {
+            for (Message message : messages) {
+                channel.send(message);
+                assertEquals(message, channel.receive());
+            }
+        }
+    }
+
+    @Test
+    void cardTypeOutsideEk_isRejected() throws IOException {
+        // the documented rule: expansions live under ek. (see ObjectStreamChannel.FILTER)
+        ObjectStreamChannel channel = reading(new Message.Welcome("Ann", List.of(OutsideCardType.OUTSIDER)));
+
+        assertThrows(InvalidClassException.class, channel::receive);
     }
 
     @Test

@@ -56,6 +56,28 @@ class ConsoleViewTest {
     }
 
     @Test
+    void render_expansionMechanics() {
+        assertEquals("Bob reversed the direction of play.", render(new GameEvent.DirectionReversed(bob)));
+        assertEquals("You reversed the direction of play.", render(new GameEvent.DirectionReversed(ann)));
+        assertEquals("Bob put the Exploding Kitten back into the deck face up.",
+                render(new GameEvent.CardPutBackFaceUp(bob, EXPLODING_KITTEN)));
+        assertEquals("You put the Exploding Kitten back into the deck face up.",
+                render(new GameEvent.CardPutBackFaceUp(ann, EXPLODING_KITTEN)));
+        assertEquals("Bob is out of the game (Taco Cat).", render(new GameEvent.PlayerEliminated(bob, TACO_CAT)));
+        assertEquals("You are out of the game (Taco Cat).", render(new GameEvent.PlayerEliminated(ann, TACO_CAT)));
+    }
+
+    @Test
+    void tone_andPause_forExpansionMechanics() {
+        assertEquals(Style.Tone.DANGER, ConsoleView.tone(new GameEvent.PlayerEliminated(bob, TACO_CAT)));
+        assertEquals(Style.Tone.DANGER, ConsoleView.tone(new GameEvent.CardPutBackFaceUp(bob, TACO_CAT)));
+        assertEquals(Style.Tone.NORMAL, ConsoleView.tone(new GameEvent.DirectionReversed(bob)));
+        view.onEvent(new GameEvent.DirectionReversed(bob));
+        view.onEvent(new GameEvent.DirectionReversed(ann));
+        assertEquals(1, pauses.size(), "only other players' moves pause");
+    }
+
+    @Test
     void render_combo() {
         assertEquals("Bob played Taco Cat ×2.",
                 render(new GameEvent.CardsPlayed(bob, List.of(TACO_CAT, TACO_CAT))));

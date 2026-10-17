@@ -64,7 +64,7 @@ class GameEngineTest {
     @Test
     void drawEffect_decidesWhatADrawnCardDoes() {
         // a made-up rule: drawing a Skip explodes you, so new draw rules need no engine change
-        DrawEffect skipExplodes = (ctx, actor, card) -> {
+        DrawEffect skipExplodes = (ctx, actor, card, faceUp) -> {
             ctx.explode(actor, card);
             return DrawEffect.Outcome.EXPLODED;
         };

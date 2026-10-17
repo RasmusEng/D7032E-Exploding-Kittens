@@ -6,6 +6,7 @@ import ek.ui.Style.Tone;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * The box drawn at the start of the viewer's turn: deck and opponents, the last events,
@@ -32,6 +33,12 @@ final class Dashboard {
         rows.add(border('┌', "Exploding Kittens", "Deck " + view.deckSize(), '┐'));
         wrap(view.opponents().stream().map(Dashboard::opponent).toList(), " │ ")
                 .forEach(text -> rows.add(row(text, Tone.NORMAL)));
+        if (!view.faceUpPositions().isEmpty()) {
+            String positions = view.faceUpPositions().stream().map(p -> ordinal(p + 1))
+                    .collect(Collectors.joining(", "));
+            wrap(List.of(("Face up in the deck: " + positions + " from the top").split(" ")), " ")
+                    .forEach(text -> rows.add(row(text, Tone.DANGER)));
+        }
         rows.add(border('├', "Recent", "", '┤'));
         if (recent.isEmpty()) {
             rows.add(row("(nothing yet)", Tone.MUTED));
@@ -44,6 +51,18 @@ final class Dashboard {
         handRows(hand).forEach(text -> rows.add(row(text, Tone.NORMAL)));
         rows.add("└" + "─".repeat(WIDTH - 2) + "┘");
         return rows;
+    }
+
+    /** 1st, 2nd, 3rd, 4th, …, 11th, 12th, 13th, 21st. */
+    static String ordinal(int n) {
+        int lastTwo = n % 100;
+        String suffix = lastTwo >= 11 && lastTwo <= 13 ? "th" : switch (n % 10) {
+            case 1 -> "st";
+            case 2 -> "nd";
+            case 3 -> "rd";
+            default -> "th";
+        };
+        return n + suffix;
     }
 
     private static String opponent(OpponentView o) {

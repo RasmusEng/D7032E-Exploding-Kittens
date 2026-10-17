@@ -19,12 +19,15 @@ public final class DeckFactory {
         this.expansions = List.copyOf(expansions);
     }
 
-    /** Returns a new deck holding every expansion's cards for {@code playerCount} players. */
+    /**
+     * Returns a new deck holding every expansion's cards for {@code playerCount} players
+     * (rule 3), each expansion adjusting the counts of the ones before it.
+     *
+     * @throws IllegalStateException if the expansions end with a negative count
+     */
     public Deck build(int playerCount) {
         Deck deck = new Deck();
-        for (Expansion expansion : expansions) {
-            addAll(deck, expansion.deckCards(playerCount));
-        }
+        addAll(deck, beforeDeal(playerCount));
         return deck;
     }
 
@@ -46,9 +49,18 @@ public final class DeckFactory {
     /** Every card type the expansions can put into the deck, e.g. to offer when naming a card. */
     public Set<CardType> cardTypes(int playerCount) {
         Set<CardType> types = new LinkedHashSet<>();
-        expansions.forEach(e -> types.addAll(e.deckCards(playerCount).keySet()));
+        types.addAll(beforeDeal(playerCount).keySet());
         types.addAll(afterDeal(playerCount).keySet());
         return types;
+    }
+
+    /** Each expansion adjusts the counts of the ones before it, in order. */
+    private Map<CardType, Integer> beforeDeal(int playerCount) {
+        Map<CardType, Integer> cards = new LinkedHashMap<>();
+        for (Expansion expansion : expansions) {
+            cards = expansion.deckCards(cards, playerCount);
+        }
+        return cards;
     }
 
     /** Each expansion adjusts the counts of the ones before it, in order. */

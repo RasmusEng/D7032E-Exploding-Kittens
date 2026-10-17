@@ -6,6 +6,7 @@ import ek.expansion.GameVariant;
 import ek.expansion.OneKittenLessExpansion;
 import ek.expansion.TestOnlyExpansion;
 import ek.expansion.TestOnlyVariant;
+import ek.fakeimploding.FakeImploding;
 import ek.rules.GameConfig;
 import org.junit.jupiter.api.Test;
 
@@ -91,6 +92,13 @@ class ConsoleMenuTest {
     void showsTheValidPlayerRange() {
         ask("\n\n2\n0\n");
         assertTrue(printed().contains("2–5 players in total"), printed());
+    }
+
+    @Test
+    void showsTheRangeOfTheChosenExpansions() {
+        GameConfig config = ask("1\n6\n0\n", List.of(new FakeImploding()), List.of(), List.of());
+        assertTrue(printed().contains("2–6 players in total"), printed());
+        assertEquals(6, config.players());
     }
 
     @Test

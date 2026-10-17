@@ -61,6 +61,20 @@ public final class GameAssembler {
     }
 
     /**
+     * The play rules: every chosen expansion's card effects plus both combos. Expansions are
+     * applied in {@link ek.expansion.GameOption#BY_ORDER} (base game first), so a later
+     * expansion's effect for a card type replaces an earlier one's. That is an extension point.
+     */
+    PlayResolver playResolver() {
+        return new PlayResolver(effects, new TwoOfAKind(), new ThreeOfAKind());
+    }
+
+    /** What drawing each card type does, overridden in the same order as {@link #playResolver()}. */
+    Map<CardType, DrawEffect> drawEffects() {
+        return Map.copyOf(drawEffects);
+    }
+
+    /**
      * Deals the players' hands and returns the draw deck (rules 1–7, with the variants).
      *
      * @throws IllegalArgumentException if the number of players is outside the allowed range
@@ -82,8 +96,8 @@ public final class GameAssembler {
         return new GameEngine(
                 new GameState(players, deck, new DiscardPile()),
                 controllers,
-                new PlayResolver(effects, new TwoOfAKind(), new ThreeOfAKind()),
-                drawEffects,
+                playResolver(),
+                drawEffects(),
                 new NopeResolver(NopeResolver.DEFAULT_WINDOW, nopeExecutor),
                 randomizer,
                 listeners);

@@ -419,3 +419,150 @@ One short entry per decision: what, and why.
   until one is needed (no speculative framework). Variants as `Expansion`s were rejected:
   `cardsAfterDeal` only edits counts and has no randomizer, so a deck-trimming variant
   couldn't be written as one.
+
+## Extension points for Imploding Kittens (`ek.expansion`, `ek.engine`, `ek.player`)
+
+Each mechanism below is generic and comes from an Imploding Kittens card or rule. None of
+the expansion itself is in `src/main`; a test-only fake (`ek.fakeimploding.FakeImploding`,
+registered with one services line) proves each one.
+
+- **Player limit and deck counts come from the expansions (block 1).** `Expansion.maxPlayers()`
+  defaults to the base game's 5, and `PlayerRange.of` takes the largest among the chosen
+  expansions (Imploding Kittens allows 6). The minimum stays 2. `deckCards` is now chained
+  like `cardsAfterDeal`: a default `deckCards(soFar, playerCount)` adds the expansion's own
+  `deckCards(playerCount)` to the counts so far. An expansion overrides it to change another's
+  counts (6 players: all 6 Defuse are dealt, so none go into the deck). One pattern for both
+  deck phases (consistency, least surprise). Default methods keep every existing expansion
+  and lambda compiling (OCP). `PlayerRange.of` stays the single source of truth (Booch:
+  cohesion), so the menu, `GameConfig` and `GameSetup` show and check the new range unchanged.
+
+- **One generic card decision instead of a method per card (block 2).**
+  `PlayerController.chooseCards(view, CardChoice)` picks `picks` of the `options`, in order:
+  all of them is an ordering (Alter the Future), fewer is a selection (Garbage Collection,
+  Potluck). The answer is a list of indexes, like the other index-returning methods. Without
+  this, each card would add a method in four places (interface, console, remote, bot) plus a
+  message pair. With it, a card adds none (OCP for the controllers and the protocol). New
+  expansion decisions must reuse it. `CardChoice` is a serializable value that checks its own
+  answers (`accepts`, Information Expert). `GameContext.chooseCards` asks again until the
+  answer is accepted (generalised `askInRange` into `askUntil`), so a buggy or hostile client
+  can't put the game in a bad state. The console checks input too, at the boundary. `prompt`
+  is display text only, never parsed, so the client still relies on no keywords (req 17).
+  One message pair (`ChooseCards`/`CardsChosen`) serves every such decision.
+  `Deck.reorderTop` applies an ordering and rejects anything that isn't a permutation.
+  Trade-off: the interface is less specific than one method per card (ISP), but a card's
+  meaning sits in its prompt, and the type safety that matters (valid indexes) is checked.
+
+- **Turn direction lives in `TurnState` (block 3).** `TurnState` keeps a direction (+1 seat
+  order, −1 the other way). `reverse()` flips it and `isClockwise()` reads it. The one loop
+  that finds the next alive player steps that way, so `endTurn`, `advance` and `attack` all
+  follow it with no other change. `reverse()` doesn't end the turn: a Reverse card calls
+  `reverse()` then `endTurn()`. With 2 players that is the same as a Skip, and under Attack
+  it ends only one turn, as the rulebook says. `startAt` resets play to clockwise. Turn order
+  stays in one class (SRP, Booch: cohesion), and cards combine two primitive operations
+  instead of the engine getting a "reverse and skip" special case (primitiveness).
+
+- **Attack takes its victim (block 4).** `TurnState.attack(players, victim)` gives the victim
+  2 turns (plus the attacker's remaining turns if they were attacked themselves), and play
+  continues from the victim. `AttackEffect` passes `nextAlive(players)`, a new query that
+  shares the one direction-aware loop with `endTurn`. Targeted Attack would pass
+  `ctx.chooseTarget(actor)`. One stacking rule for both cards (DRY), and the existing Attack
+  behaviour and tests are unchanged. A dead or unknown victim is rejected (fail fast,
+  invariant kept in `TurnState`). The old `attack(players)` was removed rather than kept as an
+  overload, so there is one way to attack (Booch: primitiveness). `TurnStateTest`'s 5 calls
+  were updated mechanically through a helper, with the same assertions.
+
+- **One draw path that effects can reach, top or bottom (block 5).** "Draw, run the card's
+  `DrawEffect`, end the turn by the outcome" moved from a private `GameEngine` method to
+  `GameContext.drawAndEndTurn(actor, Deck.Side)`. This replaces the earlier note that the
+  engine moves the turn on: `GameContext` does it now, for every draw. Pass calls it with
+  `TOP`; Draw from the Bottom would call it with `BOTTOM`, so a kitten at the bottom still
+  goes through its `DrawEffect` (defuse or explode) and the turn ends the same way. The
+  engine only knows rule 9a (Pass draws), not which cards draw (OCP); there is one copy of
+  the draw-and-end logic (DRY). `GameContext` is the effects' Facade, so the move keeps
+  effects depending only on it, not on `GameEngine`. `Deck` gets `Side { TOP, BOTTOM }`,
+  `draw(Side)` and `drawBottom()`. `draw()` stays, as dealing uses it.
+
+- **Face-up cards are a property of a deck position, not of the card (block 6).** `Deck`
+  stores `Slot(card, faceUp)` records. `shuffle`, `insertAt`/`insertFaceUpAt` and
+  `reorderTop` move whole slots, so the flag stays with its card. `Card` stays an immutable
+  value: two Imploding Kittens are the same card whether face up or not, and a face-up flag
+  on `Card` would leak into `Hand` and equality, where it means nothing. `isFaceUp(Side)`
+  tells which way up the next card is, and `GameContext.drawAndEndTurn` passes it to
+  `DrawEffect.apply(ctx, actor, card, faceUp)`. So the Imploding Kitten is one `DrawEffect`:
+  face down → put back face up, face up → out, Defuse ignored. The engine has no special case
+  (OCP). A plain `boolean` parameter instead of a `Drawn` record: it is the only fact to pass
+  (YAGNI). The cost was mechanical: `KEEP`, `ExplodingKittenDraw` and three test lambdas/calls.
+- **Decision: everyone sees where face-up cards are.** The rulebook says the Imploding
+  Kitten's white border lets everyone "see it coming". So `GameView.faceUpPositions` (0 = top)
+  is the same for every player, and the dashboard shows "Face up in the deck: 3rd from the
+  top". The view shows only positions, not which card: today only an Imploding Kitten is ever
+  face up, and the public event when it is put back (block 9) names it. A 4-argument
+  `GameView` constructor (no face-up cards) keeps existing callers compiling.
+
+- **Whether a card can be Noped is a property of its type (block 7).** `CardType` gets
+  `default boolean canBeNoped()`, which is true. `GameEngine.play` opens the Nope window only
+  if every played card can be Noped: a play is one action, so one card that can't be stopped
+  makes the whole play (combos too) unstoppable. The Imploding Kitten says no. Draws never
+  open a window, so for it this documents the rule rather than changing behaviour. A played
+  card that can't be Noped (the fake's `FAKE_UNSTOPPABLE`) skips the window. The property sits
+  with the card instead of an `if (type == X)` in the engine (OCP, no special cases). No base
+  card is tagged: Defuse and Exploding Kitten are never played alone, and a *pair* of them is a
+  combo, which may be Noped. The base game is unchanged (`rule12_everyBaseCard_canBeNoped`).
+
+- **Combo categories and wildcards live on the card type (block 8).** `CardType` gets
+  `default isCat()` (the five base cats say yes) and `default substitutesFor(other)` (no base
+  card does). A Feral Cat would return `other.isCat()`. `PlayResolver` accepts 2 or 3 cards
+  when some played type is matched by every card, either as that type or as a stand-in for it.
+  Each type's count is then checked against the hand. Base behaviour is unchanged: identical
+  cards form a combo, and two different cats or a single cat are rejected. A Feral Cat alone
+  has no `CardEffect`, so it is rejected like any cat. **Why polymorphism rather than an
+  injected `ComboMatcher`:** a matcher per expansion would need a rule for combining several
+  matchers when two expansions are active. With the method on the card type, a new wildcard
+  is just a new card type, and `PlayResolver` doesn't change (OCP, Information Expert). The
+  random bot still only offers same-type combos; that is a subset of the legal plays, so it
+  stays correct.
+
+- **Core events for the new mechanics, published by `GameContext` helpers (block 9).**
+  `GameEvent` is sealed (so `ConsoleView`'s switches are checked for completeness), so an
+  expansion can't add its own event. The engine therefore gets three generic ones:
+  `DirectionReversed`, `CardPutBackFaceUp(player, card)` and `PlayerEliminated(player, cause)`,
+  the generic "out of the game" for non-Exploding kittens; `PlayerExploded` stays for rule 10b.
+  Each is published by the `GameContext` helper that makes the change: `reverseDirection`,
+  `putBackFaceUp` (asks the position, inserts face up) and `eliminate` (shares the discard
+  logic with `explode`). An effect then can't change the state and forget the event, and the
+  helpers are the extension API for these mechanics (Facade, DRY). The events name players
+  and hold only public facts: a face-up card's type is visible to all, and the cause of
+  elimination is the face-up card that was drawn. `ConsoleView` renders all three. Trade-off
+  of the sealed interface: a future mechanic that needs a new event changes `GameEvent` and
+  `ConsoleView`. That is accepted for compile-time completeness, and the events are generic,
+  so they serve more than one card.
+
+- **Network: expansions live under `ek.` (option A).** `ObjectStreamChannel.FILTER` only lets
+  `ek.**` classes (plus basic JDK types) be read, so a hostile peer can't make us create
+  arbitrary classes. Expansion card types travel in `Welcome`, events and views, so they must
+  pass the filter. **Chosen:** document the rule (services file, `Expansion` Javadoc,
+  `FILTER` Javadoc, README) and lock it with two tests: the fake's cards from the new
+  `ek.fakeimploding` package cross the wire, and a `com.example` card type is rejected. The
+  examples that said `com.example.…` were fixed, as they would have failed over the network.
+  **Rejected for now, option B:** build the filter from the installed expansions' packages
+  (`Main` asks the registry on both server and client and passes plain package names to the
+  channel). `net` would still not depend on `expansion`, so requirement 17 holds either way.
+  B costs a constructor parameter and client-side wiring, and only pays off for third-party
+  packages. A needs no code at all. **Trade-off:** A ties expansion authors to our namespace,
+  which is acceptable while every expansion is written for this game. B is the upgrade path,
+  local to `ObjectStreamChannel` and `Main`.
+
+- **Extension point: a later expansion's effects override an earlier one's.** `GameAssembler`
+  collects `cardEffects()` and `drawEffects()` from the expansions in `GameOption.BY_ORDER`
+  (base game first), so for the same card type the expansion with the higher `order()` wins,
+  whatever order the host picked them in. An expansion can therefore replace a base card's
+  behaviour without touching `BaseGame`, e.g. a variant of Attack (OCP). Package-private
+  `playResolver()` and `drawEffects()` expose the result to `GameAssemblerTest`, and
+  `assemble` uses the same methods, so the test checks what the engine gets.
+- **Proof that Imploding Kittens needs no production change.** `ek.fakeimploding` (test code
+  only, registered with one services line) has a stand-in for every Imploding Kittens
+  mechanism: 6 players with no Defuse in the deck, one Exploding Kitten fewer, Alter the
+  Future, Reverse, Targeted Attack, Draw from the Bottom, a face-up kitten, an un-Nopeable
+  card and the Feral Cat wildcard. Each has its own test, and `FakeImplodingGameTest` plays
+  one scripted game through the real engine that uses all of them. Nothing in `src/main`
+  refers to the fake.

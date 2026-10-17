@@ -10,6 +10,10 @@ import java.util.List;
  */
 public record PlayerRange(int min, int max) {
 
+    /** Rule 1: the base game has 2–5 players. */
+    static final int BASE_GAME_MIN = 2;
+    static final int BASE_GAME_MAX = 5;
+
     public PlayerRange {
         if (min < 1 || max < min) {
             throw new IllegalArgumentException("Invalid player range " + min + "–" + max);
@@ -17,12 +21,13 @@ public record PlayerRange(int min, int max) {
     }
 
     /**
-     * The range for a game with these expansions. This is the only place the limit is
-     * defined (rule 1: 2–5 for the base game), so an expansion that allows more players
-     * changes only this method.
+     * The range for a game with these expansions, and the only place it is worked out:
+     * at least 2 players, and at most the largest {@link Expansion#maxPlayers()} (rule 1:
+     * 2–5 for the base game; Imploding Kittens allows 6).
      */
     public static PlayerRange of(List<Expansion> expansions) {
-        return new PlayerRange(2, 5);
+        int max = expansions.stream().mapToInt(Expansion::maxPlayers).max().orElse(BASE_GAME_MAX);
+        return new PlayerRange(BASE_GAME_MIN, max);
     }
 
     public boolean contains(int players) {

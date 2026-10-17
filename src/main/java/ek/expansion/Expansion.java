@@ -4,6 +4,7 @@ import ek.engine.CardEffect;
 import ek.engine.DrawEffect;
 import ek.model.CardType;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -12,6 +13,10 @@ import java.util.Map;
  * changing existing classes: an optional expansion is found on the classpath through
  * {@code META-INF/services/ek.expansion.Expansion} (see {@link ExpansionRegistry}), and
  * {@link #order()} decides where it is applied.
+ *
+ * <p>An expansion and its card types must live in an {@code ek.} package (e.g.
+ * {@code ek.imploding}): the network only accepts {@code ek.} classes, and card types are
+ * sent to the clients.
  */
 @FunctionalInterface
 public interface Expansion extends GameOption {
@@ -23,6 +28,29 @@ public interface Expansion extends GameOption {
      * @return card type to number of copies, in a stable iteration order
      */
     Map<CardType, Integer> deckCards(int playerCount);
+
+    /**
+     * The deck before dealing once this expansion is added. Expansions are asked in order,
+     * each getting the counts so far (like {@link #cardsAfterDeal}), so an expansion can
+     * also change another's counts (Imploding Kittens puts no Defuse in a 6-player deck).
+     *
+     * @param soFar       card type to copies, from the expansions before this one
+     * @param playerCount number of players in the game
+     * @return the new counts; the default adds {@link #deckCards(int)} to {@code soFar}
+     */
+    default Map<CardType, Integer> deckCards(Map<CardType, Integer> soFar, int playerCount) {
+        Map<CardType, Integer> cards = new LinkedHashMap<>(soFar);
+        deckCards(playerCount).forEach((type, copies) -> cards.merge(type, copies, Integer::sum));
+        return cards;
+    }
+
+    /**
+     * Most players a game with this expansion can have. A game allows the largest among its
+     * expansions (see {@link PlayerRange#of}); the default is the base game's limit.
+     */
+    default int maxPlayers() {
+        return PlayerRange.BASE_GAME_MAX;
+    }
 
     /** Effects of the card types this expansion adds that can be played on their own. */
     default Map<CardType, CardEffect> cardEffects() {

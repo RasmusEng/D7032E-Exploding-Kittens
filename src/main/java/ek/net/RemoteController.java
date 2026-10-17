@@ -6,6 +6,7 @@ import ek.model.Card;
 import ek.model.CardType;
 import ek.net.Message.ToClient;
 import ek.net.Message.ToServer;
+import ek.player.CardChoice;
 import ek.player.GameView;
 import ek.player.GameView.OpponentView;
 import ek.player.HandChange;
@@ -78,6 +79,7 @@ public final class RemoteController implements PlayerController, GameEventListen
                     case Message.ActionChosen a -> answers.add(Optional.of(a));
                     case Message.NumberChosen n -> answers.add(Optional.of(n));
                     case Message.CardNamed c -> answers.add(Optional.of(c));
+                    case Message.CardsChosen c -> answers.add(Optional.of(c));
                 }
             }
         } catch (IOException | UncheckedIOException e) {
@@ -108,6 +110,11 @@ public final class RemoteController implements PlayerController, GameEventListen
     @Override
     public CardType nameCard(GameView view) {
         return ask(new Message.NameCard(view), Message.CardNamed.class).type();
+    }
+
+    @Override
+    public List<Integer> chooseCards(GameView view, CardChoice choice) {
+        return ask(new Message.ChooseCards(view, choice), Message.CardsChosen.class).indexes();
     }
 
     @Override

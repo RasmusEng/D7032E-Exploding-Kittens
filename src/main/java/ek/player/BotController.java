@@ -8,9 +8,11 @@ import ek.util.Sleeper;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 /**
  * A computer player that makes random legal choices (rule 16).
@@ -82,6 +84,16 @@ public final class BotController implements PlayerController {
     @Override
     public CardType nameCard(GameView view) {
         return nameableCards.get(randomizer.nextInt(nameableCards.size()));
+    }
+
+    /** A random valid answer: {@code picks} different options, in a uniformly random order. */
+    @Override
+    public List<Integer> chooseCards(GameView view, CardChoice choice) {
+        List<Integer> indexes = new ArrayList<>(IntStream.range(0, choice.options().size()).boxed().toList());
+        for (int i = indexes.size() - 1; i > 0; i--) {
+            Collections.swap(indexes, i, randomizer.nextInt(i + 1));
+        }
+        return List.copyOf(indexes.subList(0, choice.picks()));
     }
 
     @Override

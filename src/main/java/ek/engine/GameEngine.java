@@ -1,7 +1,7 @@
 package ek.engine;
 
-import ek.model.Card;
 import ek.model.CardType;
+import ek.model.Deck;
 import ek.model.Player;
 import ek.player.PlayerController;
 import ek.player.TurnAction;
@@ -16,7 +16,6 @@ public final class GameEngine {
     private final GameState state;
     private final GameContext context;
     private final PlayResolver playResolver;
-    private final Map<CardType, DrawEffect> drawEffects;
     private final NopeResolver nopeResolver;
     private final Randomizer randomizer;
     private final List<GameEventListener> listeners;
@@ -27,11 +26,10 @@ public final class GameEngine {
                       NopeResolver nopeResolver, Randomizer randomizer, List<GameEventListener> listeners) {
         this.state = state;
         this.playResolver = playResolver;
-        this.drawEffects = Map.copyOf(drawEffects);
         this.nopeResolver = nopeResolver;
         this.randomizer = randomizer;
         this.listeners = List.copyOf(listeners);
-        this.context = new GameContext(state, controllers, randomizer, this::publish);
+        this.context = new GameContext(state, controllers, drawEffects, randomizer, this::publish);
     }
 
     /** Plays the game to the end and returns the winner. */
@@ -56,7 +54,7 @@ public final class GameEngine {
         while (state.turns().turnId() == turnId) {
             TurnAction action = context.controllerOf(actor).chooseAction(context.viewFor(actor));
             switch (action) {
-                case TurnAction.Pass pass -> drawAndEndTurn(actor);            // R9a maybe change pass to ignore since its never used
+                case TurnAction.Pass pass -> context.drawAndEndTurn(actor, Deck.Side.TOP);   // R9a, R10
                 case TurnAction.Play play -> play(actor, play.cards());         // R9b
             }
         }
@@ -72,23 +70,16 @@ public final class GameEngine {
         }
         cards.forEach(type -> state.discardPile().add(actor.hand().remove(type)));
         publish(new GameEvent.CardsPlayed(actor, cards));
-        if (nopeResolver.isCancelled(context, actor, cards)) {                 // R12
+        if (canBeNoped(cards) && nopeResolver.isCancelled(context, actor, cards)) {     // R12
             publish(new GameEvent.PlayCancelled(actor, cards));
             return;
         }
         effect.apply(context, actor);                                           // R11
     }
 
-    /** R9a: draws the top card; its {@link DrawEffect} decides whether the player survives (R10). */
-    private void drawAndEndTurn(Player actor) {
-        TurnState turns = state.turns();
-        Card card = state.deck().draw();
-        publish(new GameEvent.CardDrawn(actor));
-        DrawEffect effect = drawEffects.getOrDefault(card.type(), DrawEffect.KEEP);
-        switch (effect.apply(context, actor, card)) {
-            case SURVIVED -> turns.endTurn(state.players());
-            case EXPLODED -> turns.advance(state.players());
-        }
+    /** A play is one action: one card that can't be Noped makes the whole play unstoppable. */
+    private static boolean canBeNoped(List<CardType> cards) {
+        return cards.stream().allMatch(CardType::canBeNoped);
     }
 
     private void publish(GameEvent event) {

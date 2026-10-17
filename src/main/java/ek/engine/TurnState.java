@@ -5,7 +5,8 @@ import ek.model.Player;
 import java.util.List;
 
 /**
- * Whose turn it is and how many turns they have left. Play goes clockwise in seat order.
+ * Whose turn it is, how many turns they have left, and which way play goes: clockwise
+ * (seat order) unless a card {@linkplain #reverse() reverses} it.
  *
  * <p>{@link #turnId()} changes every time a turn ends, so callers can tell whether a
  * card effect ended the current turn.
@@ -13,17 +14,32 @@ import java.util.List;
 public final class TurnState {
 
     private static final int ATTACK_TURNS = 2;
+    private static final int CLOCKWISE = 1;
 
     private int currentIndex;
     private int turnsLeft = 1;
     private boolean underAttack;
     private int turnId;
+    private int direction = CLOCKWISE;     // +1 seat order, -1 the other way
 
-    /** Starts the game with the player at {@code index}, who has 1 turn. */
+    /** Starts the game with the player at {@code index}, who has 1 turn; play goes clockwise. */
     public void startAt(int index) {
         currentIndex = index;
         turnsLeft = 1;
         underAttack = false;
+        direction = CLOCKWISE;
+    }
+
+    /**
+     * Reverses the direction of play (Reverse). It doesn't end the turn: the card does that,
+     * so with 2 players "reverse, then end one turn" is the same as a Skip.
+     */
+    public void reverse() {
+        direction = -direction;
+    }
+
+    public boolean isClockwise() {
+        return direction == CLOCKWISE;
     }
 
     /** Ends one turn (Pass or Skip); when none are left, play moves to the next alive player. */
@@ -36,7 +52,7 @@ public final class TurnState {
     }
 
     /**
-     * Moves play to the next alive player clockwise, who gets 1 turn.
+     * Moves play to the next alive player in the direction of play, who gets 1 turn.
      * Any turns the current player had left are dropped (e.g. when they exploded).
      */
     public void advance(List<Player> players) {
@@ -45,27 +61,44 @@ public final class TurnState {
     }
 
     /**
-     * Rule 11a: ends all the current player's turns; the next player takes 2 turns.
+     * Rule 11a: ends all the current player's turns; {@code victim} takes 2 turns, and play
+     * goes on from them. Attack passes {@link #nextAlive}; Targeted Attack a chosen player.
      * If the current player was themselves attacked, their remaining turns are added
      * (2 → 4 → 6 when each victim attacks on their first turn).
+     *
+     * @throws IllegalArgumentException if {@code victim} is not an alive player in {@code players}
      */
-    public void attack(List<Player> players) {
+    public void attack(List<Player> players, Player victim) {
+        int victimIndex = players.indexOf(victim);
+        if (victimIndex < 0 || !victim.isAlive()) {
+            throw new IllegalArgumentException("Can't attack " + victim + ": not an alive player");
+        }
         int carried = underAttack ? turnsLeft : 0;
         turnId++;
-        moveToNextAlive(players, carried + ATTACK_TURNS);
+        currentIndex = victimIndex;
+        turnsLeft = carried + ATTACK_TURNS;
         underAttack = true;
     }
 
+    /** The next alive player in the direction of play (the current player if no one else is alive). */
+    public Player nextAlive(List<Player> players) {
+        return players.get(nextAliveIndex(players));
+    }
+
     private void moveToNextAlive(List<Player> players, int turns) {
-        for (int step = 1; step <= players.size(); step++) {
-            int candidate = (currentIndex + step) % players.size();
-            if (players.get(candidate).isAlive()) {
-                currentIndex = candidate;
-                break;
-            }
-        }
+        currentIndex = nextAliveIndex(players);
         turnsLeft = turns;
         underAttack = false;
+    }
+
+    private int nextAliveIndex(List<Player> players) {
+        for (int step = 1; step <= players.size(); step++) {
+            int candidate = Math.floorMod(currentIndex + step * direction, players.size());
+            if (players.get(candidate).isAlive()) {
+                return candidate;
+            }
+        }
+        return currentIndex;
     }
 
     public int currentIndex() {

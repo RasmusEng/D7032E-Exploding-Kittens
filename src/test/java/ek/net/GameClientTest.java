@@ -5,6 +5,7 @@ import ek.engine.RecordingListener;
 import ek.engine.ScriptedController;
 import ek.model.Card;
 import ek.model.CardType;
+import ek.player.CardChoice;
 import ek.player.GameView;
 import ek.player.GameView.OpponentView;
 import ek.player.HandChange;
@@ -38,7 +39,7 @@ class GameClientTest {
 
     @BeforeEach
     void setUp() {
-        controller = ScriptedController.passing(3).targets(0).gives(0).names(DEFUSE);
+        controller = ScriptedController.passing(3).targets(0).gives(0).names(DEFUSE).chooses(List.of(1, 0));
         LoopbackChannel.Pair pair = LoopbackChannel.pair();
         server = pair.server();
         GameClient client = new GameClient(pair.client(), (name, nameable) -> {
@@ -70,6 +71,10 @@ class GameClientTest {
         assertEquals(new Message.NumberChosen(0), server.receive());
         server.send(new Message.NameCard(VIEW));
         assertEquals(new Message.CardNamed(DEFUSE), server.receive());
+        CardChoice choice = CardChoice.orderOf("Order", List.of(new Card(SKIP), new Card(NOPE)));
+        server.send(new Message.ChooseCards(VIEW, choice));
+        assertEquals(new Message.CardsChosen(List.of(1, 0)), server.receive());
+        assertEquals(List.of(choice), controller.cardChoices());
 
         assertEquals("Ann", endGame());
         assertEquals(List.of("Ann"), namesSeen);

@@ -1,5 +1,6 @@
 package ek.expansion;
 
+import ek.fakeimploding.FakeImploding;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -25,8 +26,8 @@ class ExpansionRegistryTest {
 
     @Test
     void sortsByOrder_notByTheOrderTheyAreRegistered() {
-        // registered TestOnly (order 20) before OneKittenLess (order 10)
-        assertEquals(List.of(OneKittenLessExpansion.class, TestOnlyExpansion.class),
+        // registered TestOnly (order 20) before OneKittenLess (order 10); FakeImploding is 30
+        assertEquals(List.of(OneKittenLessExpansion.class, TestOnlyExpansion.class, FakeImploding.class),
                 classes(registry.optionalExpansions()));
     }
 

@@ -29,6 +29,20 @@ class DashboardTest {
     }
 
     @Test
+    void showsWhereFaceUpCardsAreInTheDeck() {
+        GameView view = new GameView(List.of(), OPPONENTS, 23, 1, List.of(0, 2));
+        List<String> rows = new Dashboard(Style.PLAIN).render(view, new HandMenu(List.of()), List.of());
+        assertTrue(rows.stream().anyMatch(r -> r.contains("Face up in the deck: 1st, 3rd from the top")),
+                String.join("\n", rows));
+        rows.forEach(row -> assertEquals(Dashboard.WIDTH, row.length(), row));
+    }
+
+    @Test
+    void noFaceUpCards_noFaceUpRow() {
+        assertTrue(render(SKIP).stream().noneMatch(r -> r.contains("Face up")));
+    }
+
+    @Test
     void everyRowIsTheSameWidth() {
         List<ConsoleOutput.Line> recent = List.of(new ConsoleOutput.Line("Bob played Attack.", Tone.NORMAL));
         render(Style.PLAIN, 2, recent, ATTACK, TACO_CAT, TACO_CAT, NOPE, SKIP)

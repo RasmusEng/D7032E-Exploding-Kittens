@@ -3,6 +3,7 @@ package ek.net;
 import ek.engine.GameEvent;
 import ek.model.Card;
 import ek.model.CardType;
+import ek.player.CardChoice;
 import ek.player.GameView;
 import ek.player.HandChange;
 import ek.player.NopeOffer;
@@ -59,6 +60,15 @@ class RemoteControllerTest {
         assertEquals(DEFUSE, remote.nameCard(VIEW));
         assertEquals(new Message.ChooseKittenPosition(VIEW, 10), client.receive());
         assertEquals(new Message.NameCard(VIEW), client.receive());
+    }
+
+    @Test
+    void chooseCards_sendsTheChoice_andReturnsTheIndexes() throws IOException {
+        CardChoice choice = CardChoice.orderOf("Order", List.of(new Card(SKIP), new Card(NOPE)));
+        client.send(new Message.CardsChosen(List.of(1, 0)));
+
+        assertEquals(List.of(1, 0), remote.chooseCards(VIEW, choice));
+        assertEquals(new Message.ChooseCards(VIEW, choice), client.receive());
     }
 
     @Test

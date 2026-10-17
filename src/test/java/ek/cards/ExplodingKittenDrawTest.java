@@ -28,7 +28,7 @@ class ExplodingKittenDrawTest {
                 .listener(listener);
         GameContext ctx = game.buildContext();
 
-        assertEquals(Outcome.SURVIVED, draw.apply(ctx, game.player(0), new Card(EXPLODING_KITTEN)));
+        assertEquals(Outcome.SURVIVED, draw.apply(ctx, game.player(0), new Card(EXPLODING_KITTEN), false));
         assertEquals(List.of(ATTACK, EXPLODING_KITTEN, NOPE),
                 game.state().deck().peek(3).stream().map(Card::type).toList());
         assertEquals(List.of(new Card(SKIP)), game.player(0).hand().cards());
@@ -44,7 +44,7 @@ class ExplodingKittenDrawTest {
                 .player("B", ScriptedController.passing());
         GameContext ctx = game.buildContext();
 
-        assertEquals(Outcome.EXPLODED, draw.apply(ctx, game.player(0), new Card(EXPLODING_KITTEN)));
+        assertEquals(Outcome.EXPLODED, draw.apply(ctx, game.player(0), new Card(EXPLODING_KITTEN), false));
         assertFalse(game.player(0).isAlive());
         assertEquals(2, game.state().discardPile().size());
     }
