@@ -7,7 +7,8 @@ public enum FakeCardType implements CardType {
     FAKE_KITTEN("Fake Imploding Kitten"),
     FAKE_ALTER_THE_FUTURE("Fake Alter the Future"),
     FAKE_REVERSE("Fake Reverse"),
-    FAKE_TARGETED_ATTACK("Fake Targeted Attack");
+    FAKE_TARGETED_ATTACK("Fake Targeted Attack"),
+    FAKE_DRAW_FROM_THE_BOTTOM("Fake Draw from the Bottom");
 
     private final String displayName;
 

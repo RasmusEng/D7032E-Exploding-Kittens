@@ -1,6 +1,8 @@
 package ek.engine;
 
 import ek.model.Card;
+import ek.model.CardType;
+import ek.model.Deck;
 import ek.model.Player;
 import ek.player.CardChoice;
 import ek.player.GameView;
@@ -17,21 +19,24 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * What a card effect may use: the game state, the players' controllers, randomness and
- * event publishing. Also builds each player's {@link GameView} and re-asks controllers
- * until they give a valid answer.
+ * What a card effect may use (Facade): the game state, the players' controllers, randomness,
+ * event publishing and the draw path. Also builds each player's {@link GameView} and re-asks
+ * controllers until they give a valid answer.
  */
 public final class GameContext {
 
     private final GameState state;
     private final Map<Player, PlayerController> controllers;
+    private final Map<CardType, DrawEffect> drawEffects;
     private final Randomizer randomizer;
     private final Consumer<GameEvent> publisher;
 
+    /** @param drawEffects what drawing each card type does; any other card goes into the hand */
     public GameContext(GameState state, Map<Player, PlayerController> controllers,
-                       Randomizer randomizer, Consumer<GameEvent> publisher) {
+                       Map<CardType, DrawEffect> drawEffects, Randomizer randomizer, Consumer<GameEvent> publisher) {
         this.state = state;
         this.controllers = Map.copyOf(controllers);
+        this.drawEffects = Map.copyOf(drawEffects);
         this.randomizer = randomizer;
         this.publisher = publisher;
     }
@@ -61,6 +66,22 @@ public final class GameContext {
         controllerOf(from).handChanged(new HandChange.Lost(card, to.name()));
         controllerOf(to).handChanged(new HandChange.Received(card, from.name()));
         publish(new GameEvent.CardTaken(from, to));
+    }
+
+    /**
+     * Ends a turn by drawing (rule 9a): {@code actor} draws from {@code side} of the deck,
+     * the card's {@link DrawEffect} handles it (rule 10), and the turn moves on by the
+     * outcome: one turn ends if they survived, all of them if they are out. Pass draws from
+     * the top; a card such as Draw from the Bottom calls this with the other side.
+     */
+    public void drawAndEndTurn(Player actor, Deck.Side side) {
+        Card card = state.deck().draw(side);
+        publish(new GameEvent.CardDrawn(actor));
+        DrawEffect effect = drawEffects.getOrDefault(card.type(), DrawEffect.KEEP);
+        switch (effect.apply(this, actor, card)) {
+            case SURVIVED -> state.turns().endTurn(state.players());
+            case EXPLODED -> state.turns().advance(state.players());
+        }
     }
 
     /** Asks {@code actor} to pick another alive player. */

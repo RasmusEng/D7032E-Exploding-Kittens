@@ -30,6 +30,25 @@ class DeckTest {
     }
 
     @Test
+    void drawBottom_returnsBottomCard() {
+        Deck deck = deckOf(ATTACK, SKIP, NOPE);
+        assertEquals(NOPE, deck.drawBottom().type());
+        assertEquals(List.of(new Card(ATTACK), new Card(SKIP)), deck.peek(3));
+    }
+
+    @Test
+    void drawFromASide_sameAsTheNamedMethods() {
+        Deck deck = deckOf(ATTACK, SKIP, NOPE);
+        assertEquals(ATTACK, deck.draw(Deck.Side.TOP).type());
+        assertEquals(NOPE, deck.draw(Deck.Side.BOTTOM).type());
+    }
+
+    @Test
+    void drawBottom_emptyDeck_throws() {
+        assertThrows(IllegalStateException.class, () -> new Deck().drawBottom());
+    }
+
+    @Test
     void reorderTop_newTopIsTheChosenCards() {
         Deck deck = deckOf(SKIP, ATTACK, NOPE, TACO_CAT);
         deck.reorderTop(List.of(2, 0, 1));

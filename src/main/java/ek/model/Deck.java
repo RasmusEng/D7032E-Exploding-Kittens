@@ -25,15 +25,34 @@ public final class Deck {
         newCards.forEach(this::addToBottom);
     }
 
+    /** An end of the deck a card can be drawn from. */
+    public enum Side { TOP, BOTTOM }
+
     /**
      * Removes and returns the top card.
      * @throws IllegalStateException if the deck is empty
      */
     public Card draw() {
+        return draw(Side.TOP);
+    }
+
+    /**
+     * Removes and returns the bottom card (Draw from the Bottom).
+     * @throws IllegalStateException if the deck is empty
+     */
+    public Card drawBottom() {
+        return draw(Side.BOTTOM);
+    }
+
+    /**
+     * Removes and returns the card at {@code side}.
+     * @throws IllegalStateException if the deck is empty
+     */
+    public Card draw(Side side) {
         if (cards.isEmpty()) {
             throw new IllegalStateException("Cannot draw from an empty deck");
         }
-        return cards.removeFirst();
+        return side == Side.TOP ? cards.removeFirst() : cards.removeLast();
     }
 
     /**

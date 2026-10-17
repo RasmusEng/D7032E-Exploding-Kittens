@@ -118,7 +118,7 @@ public final class GameStateBuilder {
     public GameContext buildContext() {
         state = new GameState(players, deck, new DiscardPile());
         state.turns().startAt(startIndex == null ? 0 : startIndex);
-        return new GameContext(state, controllers, randomizer,
+        return new GameContext(state, controllers, drawEffects, randomizer,
                 event -> listeners.forEach(l -> l.onEvent(event)));
     }
 

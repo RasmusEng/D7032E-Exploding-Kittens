@@ -470,3 +470,14 @@ registered with one services line) proves each one.
   invariant kept in `TurnState`). The old `attack(players)` was removed rather than kept as an
   overload, so there is one way to attack (Booch: primitiveness). `TurnStateTest`'s 5 calls
   were updated mechanically through a helper, with the same assertions.
+
+- **One draw path that effects can reach, top or bottom (block 5).** "Draw, run the card's
+  `DrawEffect`, end the turn by the outcome" moved from a private `GameEngine` method to
+  `GameContext.drawAndEndTurn(actor, Deck.Side)`. This replaces the earlier note that the
+  engine moves the turn on: `GameContext` does it now, for every draw. Pass calls it with
+  `TOP`; Draw from the Bottom would call it with `BOTTOM`, so a kitten at the bottom still
+  goes through its `DrawEffect` (defuse or explode) and the turn ends the same way. The
+  engine only knows rule 9a (Pass draws), not which cards draw (OCP); there is one copy of
+  the draw-and-end logic (DRY). `GameContext` is the effects' Facade, so the move keeps
+  effects depending only on it, not on `GameEngine`. `Deck` gets `Side { TOP, BOTTOM }`,
+  `draw(Side)` and `drawBottom()`. `draw()` stays, as dealing uses it.
