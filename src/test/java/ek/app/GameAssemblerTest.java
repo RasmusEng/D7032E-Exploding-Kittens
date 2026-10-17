@@ -1,12 +1,21 @@
 package ek.app;
 
+import ek.cards.ExplodingKittenDraw;
+import ek.engine.CardEffect;
+import ek.engine.DrawEffect;
 import ek.engine.GameEngine;
+import ek.engine.InvalidMoveException;
 import ek.engine.ScriptedController;
 import ek.expansion.Expansion;
 import ek.expansion.OneKittenLessExpansion;
 import ek.expansion.TestOnlyExpansion;
 import ek.expansion.TestOnlyVariant;
+import ek.fakeimploding.FakeCardType;
+import ek.fakeimploding.FakeImploding;
+import ek.model.Card;
+import ek.model.CardType;
 import ek.model.Deck;
+import ek.model.Hand;
 import ek.model.Player;
 import ek.player.PlayerController;
 import ek.rules.GameConfig;
@@ -34,6 +43,58 @@ class GameAssemblerTest {
 
     private static Deck deck(GameConfig config) {
         return new GameAssembler(config, NO_SHUFFLE).setUp(players(config.players()));
+    }
+
+    /** An expansion that only replaces what Skip does when played and Taco Cat when drawn. */
+    private static Expansion replacing(int order, CardEffect skip, DrawEffect taco) {
+        return new Expansion() {
+            public Map<CardType, Integer> deckCards(int players) {
+                return Map.of();
+            }
+
+            public Map<CardType, CardEffect> cardEffects() {
+                return Map.of(SKIP, skip);
+            }
+
+            public Map<CardType, DrawEffect> drawEffects() {
+                return Map.of(TACO_CAT, taco);
+            }
+
+            public int order() {
+                return order;
+            }
+        };
+    }
+
+    @Test
+    void laterExpansionsEffects_overrideEarlierOnes_inOrderNotListOrder() throws InvalidMoveException {
+        CardEffect earlySkip = (ctx, actor) -> { };
+        CardEffect lateSkip = (ctx, actor) -> { };
+        DrawEffect earlyTaco = (ctx, actor, card, faceUp) -> DrawEffect.Outcome.SURVIVED;
+        DrawEffect lateTaco = (ctx, actor, card, faceUp) -> DrawEffect.Outcome.SURVIVED;
+        Expansion early = replacing(10, earlySkip, earlyTaco);
+        Expansion late = replacing(20, lateSkip, lateTaco);
+        // listed late first: the order() decides, not the list
+        GameAssembler assembler = new GameAssembler(GameConfig.of(2, 0, List.of(late, early), List.of()), NO_SHUFFLE);
+
+        Hand hand = new Hand();
+        hand.add(new Card(SKIP));
+        assertSame(lateSkip, assembler.playResolver().resolve(List.of(SKIP), hand));
+        assertSame(lateTaco, assembler.drawEffects().get(TACO_CAT));
+        assertInstanceOf(ExplodingKittenDraw.class, assembler.drawEffects().get(EXPLODING_KITTEN), "base kept");
+    }
+
+    @Test
+    void implodingSixPlayers_assembledSetUp() {
+        GameConfig config = GameConfig.of(6, 0, List.of(new FakeImploding()), List.of());
+        List<Player> players = players(6);
+        Deck deck = new GameAssembler(config, NO_SHUFFLE).setUp(players);
+
+        players.forEach(p -> assertEquals(8, p.hand().size()));
+        players.forEach(p -> assertEquals(1, p.hand().count(DEFUSE)));
+        assertEquals(0, deck.count(DEFUSE));
+        assertEquals(4, deck.count(EXPLODING_KITTEN));
+        assertEquals(1, deck.count(FakeCardType.FAKE_KITTEN));
     }
 
     @Test

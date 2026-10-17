@@ -551,3 +551,18 @@ registered with one services line) proves each one.
   packages. A needs no code at all. **Trade-off:** A ties expansion authors to our namespace,
   which is acceptable while every expansion is written for this game. B is the upgrade path,
   local to `ObjectStreamChannel` and `Main`.
+
+- **Extension point: a later expansion's effects override an earlier one's.** `GameAssembler`
+  collects `cardEffects()` and `drawEffects()` from the expansions in `GameOption.BY_ORDER`
+  (base game first), so for the same card type the expansion with the higher `order()` wins,
+  whatever order the host picked them in. An expansion can therefore replace a base card's
+  behaviour without touching `BaseGame`, e.g. a variant of Attack (OCP). Package-private
+  `playResolver()` and `drawEffects()` expose the result to `GameAssemblerTest`, and
+  `assemble` uses the same methods, so the test checks what the engine gets.
+- **Proof that Imploding Kittens needs no production change.** `ek.fakeimploding` (test code
+  only, registered with one services line) has a stand-in for every Imploding Kittens
+  mechanism: 6 players with no Defuse in the deck, one Exploding Kitten fewer, Alter the
+  Future, Reverse, Targeted Attack, Draw from the Bottom, a face-up kitten, an un-Nopeable
+  card and the Feral Cat wildcard. Each has its own test, and `FakeImplodingGameTest` plays
+  one scripted game through the real engine that uses all of them. Nothing in `src/main`
+  refers to the fake.
